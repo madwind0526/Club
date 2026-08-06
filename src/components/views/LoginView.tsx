@@ -70,8 +70,6 @@ export function LoginView({ clubName, theme, onLoginSuccess }: LoginViewProps) {
         <button className="btn btn-primary" disabled={isSubmitting || !knoxId.trim() || !password} type="submit">
           로그인
         </button>
-
-        <p className="login-hint">초기 관리자 계정: admin / admin1234</p>
       </form>
     </div>
   );

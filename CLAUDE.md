@@ -22,7 +22,7 @@ npm run build   # tsc -b && vite build && tsc -p tsconfig.node.json
 - **`vite.config.mts`** — React plugin + `/api/*` dev-only middleware mirroring the IPC handlers, so `npm run dev` works in a plain browser without Electron (same dual-path pattern as SNS-Reader).
 - **`src/data/*Store.ts`** — One module per entity (`settingsStore`, `membersStore`, `activitiesStore`, `boardStore`, `authStore`). Each tries `window.clubApp?.xxx?.()` first, falls back to `fetch('/api/...')`.
 - **`src/App.tsx`** — Renders `LoginView` full-screen when no session, otherwise the app shell (`TopToolbar` + `Sidebar` + view + `system-message` footer) from `src/components/layout/`.
-- **`src/components/views/*`** — One component per screen (Home, Activities, ActivityDetail, ActivityRegister, ActivityReport, Board, Members, WeeklyReport (stub), MonthlyReport (stub), Settings, Profile, Login).
+- **`src/components/views/*`** — One component per screen (Home, Activities, ActivityRegister, ActivityReport, WeeklyReport, MonthlyReport + MonthlyReportDetail, Board, Members, Settings, Profile, Login). `ActivityQuickViewModal` and `ActivityReportView` are rendered as popups from `App.tsx`, not full-page routes.
 - **`src/types/domain.ts`** — Member / Activity / BoardPost / AppSettings types shared by client and (loosely, via JSDoc-equivalent shapes) the electron main process.
 
 ## Key Conventions
@@ -32,7 +32,7 @@ npm run build   # tsc -b && vite build && tsc -p tsconfig.node.json
 - Passwords are stored as SHA-256 hashes and only ever compared inside the main process / dev-server middleware, never in renderer code.
 - Photos/receipts/expenses live under a user-configured "데이터 루트 폴더" (Settings), structured as `Photos|Receipts|Expenses/YYYY-MM/WeekN/`.
 - Visual design: true grayscale palette (not SNS-Reader's cream tone) — see `src/styles/app.css` `:root` tokens. No saturated accent color except a minimal red for destructive actions.
-- Weekly/Monthly report generation (좌측 하단 메뉴) is intentionally a placeholder for now — scope deferred by the user.
+- Weekly report (admin-only) lists all activities and opens the same report popup used elsewhere. Monthly report aggregates a month's activities into one combined view (photos grouped by week, merged receipt/expense tables, per-member attendance + sponsorship-amount table).
 
 ---
 

@@ -989,12 +989,6 @@ a {
   text-align: center;
 }
 
-.login-hint {
-  color: var(--text-muted);
-  font-size: 0.74rem;
-  text-align: center;
-}
-
 /* ---------- Error boundary ---------- */
 
 .app-error-boundary {
