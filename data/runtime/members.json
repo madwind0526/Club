@@ -1,0 +1,86 @@
+[
+  {
+    "id": "member-admin-seed",
+    "name": "관리자",
+    "knoxId": "admin",
+    "passwordHash": "ac9689e2272427085e35b9d3e3e8bed88cb3434828b43b86fc0596cad4c6e270",
+    "department": "운영진",
+    "contact": "",
+    "joinDate": "2026-08-06",
+    "grade": "회장",
+    "role": "admin",
+    "note": "초기 관리자 계정 (Settings에서 회원 정보 수정 권장)"
+  },
+  {
+    "id": "member-002",
+    "name": "김민준",
+    "knoxId": "kim.minjun",
+    "passwordHash": "9190ed2b967f0914318d78a5e52ce79e4b7ebbed66230309342ce675566fffc8",
+    "department": "개발팀",
+    "contact": "010-1234-5678",
+    "joinDate": "2023-03-02",
+    "grade": "총무",
+    "role": "일반",
+    "note": "동호회 회계 담당"
+  },
+  {
+    "id": "member-003",
+    "name": "이서연",
+    "knoxId": "lee.seoyeon",
+    "passwordHash": "937da787395f8e81db74e87a82991fd5b7422eb4933ee8ca8f184efeecf40d3e",
+    "department": "마케팅팀",
+    "contact": "010-2345-6789",
+    "joinDate": "2023-06-15",
+    "grade": "감사",
+    "role": "일반",
+    "note": ""
+  },
+  {
+    "id": "member-004",
+    "name": "박지훈",
+    "knoxId": "park.jihoon",
+    "passwordHash": "373b37126a2a9e607625110ef37bdd1e1edcc353376b85c635ccd2dbebb80c70",
+    "department": "영업팀",
+    "contact": "010-3456-7890",
+    "joinDate": "2024-01-08",
+    "grade": "정회원",
+    "role": "일반",
+    "note": ""
+  },
+  {
+    "id": "member-005",
+    "name": "최유진",
+    "knoxId": "choi.yujin",
+    "passwordHash": "70fb91dc4215157b1e8d367b41e9bf8c9561fa89531ecd72f743ffa89fad0e6a",
+    "department": "인사팀",
+    "contact": "010-4567-8901",
+    "joinDate": "2024-04-22",
+    "grade": "정회원",
+    "role": "일반",
+    "note": ""
+  },
+  {
+    "id": "member-006",
+    "name": "정도윤",
+    "knoxId": "jung.doyoon",
+    "passwordHash": "3ca3a99fa2702fdce15ba318613b1e442de974f7f77ac96f2e19d0bfd501badf",
+    "department": "개발팀",
+    "contact": "010-5678-9012",
+    "joinDate": "2024-09-10",
+    "grade": "정회원",
+    "role": "일반",
+    "note": "신입 회원"
+  },
+  {
+    "id": "member-007",
+    "name": "강하은",
+    "knoxId": "kang.haeun",
+    "passwordHash": "aca993110b2c1f6d77f61019a415062c041bb7d9aa776a94e42e6109457003b6",
+    "department": "디자인팀",
+    "contact": "010-6789-0123",
+    "joinDate": "2025-02-17",
+    "grade": "정회원",
+    "role": "일반",
+    "note": ""
+  }
+]

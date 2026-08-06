@@ -1,0 +1,201 @@
+[
+  {
+    "id": "post-notice-1",
+    "category": "공지",
+    "title": "8월 정기모임 및 여름 번개모임 안내",
+    "content": "안녕하세요, 회원 여러분.\n8월 20일(목) 여름 휴가철 번개 모임을 진행할 예정입니다. Activities 메뉴에서 참가 신청 부탁드립니다.\n장소는 추후 확정되는 대로 다시 공지드리겠습니다.",
+    "authorId": "member-admin-seed",
+    "createdAt": "2026-08-05T10:00:00.000Z",
+    "pinned": true,
+    "comments": [
+      {
+        "id": "comment-notice-1-1",
+        "authorId": "member-002",
+        "content": "확인했습니다! 참가 신청했어요.",
+        "createdAt": "2026-08-05T11:20:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "post-notice-2",
+    "category": "공지",
+    "title": "동호회 회칙 개정 안내 (회비 납부 방식 변경)",
+    "content": "2026년 하반기부터 회비 납부 방식이 계좌이체 단일 방식으로 변경됩니다. 자세한 내용은 회칙 문서를 참고해 주세요.",
+    "authorId": "member-admin-seed",
+    "createdAt": "2026-07-20T09:00:00.000Z",
+    "pinned": false,
+    "comments": []
+  },
+  {
+    "id": "post-general-1",
+    "category": "일반",
+    "title": "북한산 등산 모임 사진 공유합니다",
+    "content": "지난 3월 북한산 등산 모임 때 찍은 사진들 공유드려요. 다들 고생 많으셨습니다!",
+    "authorId": "member-002",
+    "createdAt": "2026-03-15T20:30:00.000Z",
+    "pinned": false,
+    "comments": [
+      {
+        "id": "comment-general-1-1",
+        "authorId": "member-007",
+        "content": "사진 잘 나왔네요 ㅎㅎ 다음에도 또 가요!",
+        "createdAt": "2026-03-16T09:10:00.000Z"
+      },
+      {
+        "id": "comment-general-1-2",
+        "authorId": "member-002",
+        "content": "네 다음엔 도봉산도 도전해봐요.",
+        "createdAt": "2026-03-16T13:40:00.000Z",
+        "parentCommentId": "comment-general-1-1"
+      }
+    ]
+  },
+  {
+    "id": "post-general-2",
+    "category": "일반",
+    "title": "신입 회원 인사드립니다!",
+    "content": "안녕하세요, 개발팀 정도윤입니다. 작년에 가입했는데 이제야 인사드리네요. 앞으로 잘 부탁드립니다!",
+    "authorId": "member-006",
+    "createdAt": "2026-06-02T14:00:00.000Z",
+    "pinned": false,
+    "comments": [
+      {
+        "id": "comment-general-2-1",
+        "authorId": "member-admin-seed",
+        "content": "환영합니다! 다음 모임 때 뵈어요 :)",
+        "createdAt": "2026-06-02T15:05:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "post-request-1",
+    "category": "요청",
+    "title": "다음 모임 장소 추천 부탁드려요",
+    "content": "9월 정기 모임 장소를 고민 중인데, 회사 근처에 인원 15명 정도 수용 가능한 장소 아시는 분 계실까요?",
+    "authorId": "member-005",
+    "createdAt": "2026-08-04T16:20:00.000Z",
+    "pinned": false,
+    "comments": [
+      {
+        "id": "comment-request-1-1",
+        "authorId": "member-006",
+        "content": "회사 근처 '온고을'이 룸이 넓어서 괜찮았어요. 지난번에도 거기서 했었죠.",
+        "createdAt": "2026-08-04T17:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "post-qna-1",
+    "category": "QnA",
+    "title": "회비는 어떻게 납부하나요?",
+    "content": "이번에 처음 가입해서 여쭤봅니다. 회비 납부 계좌와 금액이 어떻게 되나요?",
+    "authorId": "member-007",
+    "createdAt": "2026-07-25T11:00:00.000Z",
+    "pinned": false,
+    "comments": [
+      {
+        "id": "comment-qna-1-1",
+        "authorId": "member-002",
+        "content": "월 1만원이고, 계좌 정보는 공지사항의 회칙 문서를 참고해 주세요. 총무가 안내드립니다.",
+        "createdAt": "2026-07-25T11:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "post-notice-3",
+    "category": "공지",
+    "title": "회원 연락처 정보 업데이트 요청",
+    "content": "비상 연락망 정비를 위해 연락처가 변경되신 분은 회원 관리 담당(총무)에게 알려주시기 바랍니다. 이번 달 말까지 취합할 예정입니다.",
+    "authorId": "member-admin-seed",
+    "createdAt": "2026-06-10T09:30:00.000Z",
+    "pinned": false,
+    "comments": [
+      {
+        "id": "comment-notice-3-1",
+        "authorId": "member-005",
+        "content": "저 번호 바뀌어서 총무님께 따로 연락드릴게요!",
+        "createdAt": "2026-06-10T10:15:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "post-general-3",
+    "category": "일반",
+    "title": "동호회 단체 티셔츠 디자인 투표 부탁드려요",
+    "content": "연말 송년회 때 맞춰 입을 단체 티셔츠 시안 2개를 준비했습니다. 댓글로 1안/2안 중 골라주세요!",
+    "authorId": "member-007",
+    "createdAt": "2026-07-02T13:00:00.000Z",
+    "pinned": false,
+    "comments": [
+      {
+        "id": "comment-general-3-1",
+        "authorId": "member-003",
+        "content": "저는 1안이 깔끔해서 좋아요.",
+        "createdAt": "2026-07-02T14:10:00.000Z"
+      },
+      {
+        "id": "comment-general-3-2",
+        "authorId": "member-004",
+        "content": "2안 색상이 더 튀어서 단체사진 찍기 좋을 것 같아요.",
+        "createdAt": "2026-07-02T15:42:00.000Z"
+      },
+      {
+        "id": "comment-general-3-3",
+        "authorId": "member-002",
+        "content": "저도 2안 한 표 보탭니다.",
+        "createdAt": "2026-07-02T16:05:00.000Z",
+        "parentCommentId": "comment-general-3-2"
+      }
+    ]
+  },
+  {
+    "id": "post-general-4",
+    "category": "일반",
+    "title": "여름 워크숍 발표자료 공유합니다",
+    "content": "지난주 워크숍 세미나 발표자료 공유드립니다. 못 오신 분들도 참고하시면 좋을 것 같아요.",
+    "authorId": "member-005",
+    "createdAt": "2026-07-19T18:00:00.000Z",
+    "pinned": false,
+    "comments": []
+  },
+  {
+    "id": "post-request-2",
+    "category": "요청",
+    "title": "가을 등산 대회 카풀 가능하신 분 계신가요?",
+    "content": "10월 설악산 등산 대회 때 저 혼자 운전하기 부담스러운데, 같이 카풀하실 분 있으면 댓글 부탁드립니다. 출발은 강남 쪽에서 생각하고 있어요.",
+    "authorId": "member-003",
+    "createdAt": "2026-08-03T09:40:00.000Z",
+    "pinned": false,
+    "comments": [
+      {
+        "id": "comment-request-2-1",
+        "authorId": "member-004",
+        "content": "저 강남 근처 살아서 같이 가능합니다!",
+        "createdAt": "2026-08-03T10:02:00.000Z"
+      },
+      {
+        "id": "comment-1786027321194",
+        "authorId": "member-admin-seed",
+        "content": "실험",
+        "createdAt": "2026-08-06T14:42:01.194Z"
+      }
+    ]
+  },
+  {
+    "id": "post-qna-2",
+    "category": "QnA",
+    "title": "활동 계획서는 꼭 첨부해야 하나요?",
+    "content": "활동 등록할 때 계획서 파일이 필수인지 궁금합니다. 간단한 모임도 꼭 첨부해야 하나요?",
+    "authorId": "member-004",
+    "createdAt": "2026-08-02T08:50:00.000Z",
+    "pinned": false,
+    "comments": [
+      {
+        "id": "comment-qna-2-1",
+        "authorId": "member-admin-seed",
+        "content": "필수는 아니에요. 예산이 들어가거나 정식 행사인 경우에만 첨부해 주시면 됩니다.",
+        "createdAt": "2026-08-02T09:20:00.000Z"
+      }
+    ]
+  }
+]
