@@ -1,0 +1,12 @@
+node_modules/
+dist/
+dist-electron/
+data/runtime/
+*.log
+.env
+*.tsbuildinfo
+
+# Local test data root (Photos/Receipts/Expenses/Plan) configured via Settings -
+# equivalent to data/runtime/, points at an external, user-specific folder.
+Input/
+assets/
