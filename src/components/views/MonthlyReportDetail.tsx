@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { exportMonthlyReportExcel } from "../../data/activitiesStore";
 import type { Activity, ExpenseItem, PublicMember, ReceiptItem } from "../../types/domain";
 
 interface MonthlyReportDetailProps {
@@ -6,6 +7,7 @@ interface MonthlyReportDetailProps {
   activities: Activity[];
   members: PublicMember[];
   onClose: () => void;
+  onSystemMessage: (message: string) => void;
 }
 
 interface AttendanceRow {
@@ -80,8 +82,25 @@ function MonthlyLineItemTable({ title, rows }: { title: string; rows: Array<Rece
   );
 }
 
-export function MonthlyReportDetail({ yyyyMm, activities, members, onClose }: MonthlyReportDetailProps) {
+export function MonthlyReportDetail({ yyyyMm, activities, members, onClose, onSystemMessage }: MonthlyReportDetailProps) {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+
+    try {
+      const result = await exportMonthlyReportExcel(yyyyMm);
+
+      if (result.ok) {
+        onSystemMessage(result.path ? `엑셀 파일로 내보냈습니다: ${result.path}` : "엑셀 파일로 내보냈습니다.");
+      } else if (result.error) {
+        onSystemMessage(result.error);
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const monthActivities = useMemo(
     () =>
@@ -113,9 +132,14 @@ export function MonthlyReportDetail({ yyyyMm, activities, members, onClose }: Mo
     <div>
       <div className="view-header">
         <h1>{yyyyMm.slice(2)} 월간 정리</h1>
-        <button className="btn" onClick={onClose} type="button">
-          닫기
-        </button>
+        <div className="form-actions">
+          <button className="btn btn-primary" disabled={isExporting} onClick={handleExportExcel} type="button">
+            {isExporting ? "내보내는 중..." : "Excel로 내보내기"}
+          </button>
+          <button className="btn btn-primary" onClick={onClose} type="button">
+            닫기
+          </button>
+        </div>
       </div>
 
       {monthActivities.length === 0 ? (

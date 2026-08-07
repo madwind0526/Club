@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { computeWeekOfMonth, formatYyyyMm } from "../../data/activitiesStore";
 import { findPlanFile, pickFile } from "../../data/mediaStore";
+import { PlanFileControls } from "./PlanFileControls";
 import type { Activity, PublicMember } from "../../types/domain";
 
 interface ActivityRegisterViewProps {
@@ -113,15 +114,13 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
 
         <div className="form-field">
           <label>활동 계획서</label>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <button className="btn btn-sm" onClick={handlePickPlanFile} type="button">
-              파일 첨부
-            </button>
-            <button className="btn btn-sm" disabled={isFindingPlanFile} onClick={handleAutoDetectPlanFile} type="button">
-              {isFindingPlanFile ? "찾는 중..." : "자동 첨부"}
-            </button>
-            <span className="view-subtitle">{planFile?.name ?? "선택된 파일 없음"}</span>
-          </div>
+          <PlanFileControls
+            isFinding={isFindingPlanFile}
+            onAutoDetect={handleAutoDetectPlanFile}
+            onPick={handlePickPlanFile}
+            onSystemMessage={onSystemMessage}
+            planFile={planFile}
+          />
         </div>
 
         <div className="form-field">

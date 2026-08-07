@@ -445,7 +445,7 @@ a {
 
 .activity-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
   padding: 10px 0;
@@ -484,6 +484,18 @@ a {
   color: var(--text-muted);
   font-size: 0.78rem;
   margin-top: 2px;
+}
+
+.activity-row .date-badge {
+  min-width: 74px;
+  height: 32px;
+  font-size: 1rem;
+}
+
+.activity-row-attendees {
+  font-size: 1.05rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .home-header {
@@ -723,10 +735,40 @@ a {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
+.pdf-preview-content {
+  width: 80vw;
+  height: 85vh;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
 .thumbnail-empty {
   color: var(--text-muted);
   font-size: 0.82rem;
   padding: 10px 0;
+}
+
+.plan-file-icon-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+  overflow: hidden;
+}
+
+.plan-file-icon-tile span {
+  font-size: 0.68rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ---------- Activities photo/card/list ---------- */

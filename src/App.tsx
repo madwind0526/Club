@@ -140,6 +140,25 @@ export function App() {
     setSystemMessage("로그아웃했습니다.");
   };
 
+  // Used after the current user edits their own profile - keeps the member list and the
+  // cached session in sync so the change shows up immediately everywhere in the UI.
+  const handleOwnProfileUpdated = (nextMembers: PublicMember[]) => {
+    setMembers(nextMembers);
+    setSession((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const refreshed = nextMembers.find((member) => member.id === current.id);
+
+      if (refreshed) {
+        saveSession(refreshed);
+      }
+
+      return refreshed ?? current;
+    });
+  };
+
   const handleSelectActivitiesViewMode = (mode: ActivitiesViewMode) => {
     setActivitiesViewMode(mode);
     setView("activities");
@@ -234,6 +253,7 @@ export function App() {
             members={members}
             onMembersChange={setMembers}
             onSystemMessage={setSystemMessage}
+            settings={settings}
           />
         )}
 
@@ -252,7 +272,14 @@ export function App() {
           />
         )}
 
-        {view === "profile" && <ProfileView member={session} onLogout={handleLogout} />}
+        {view === "profile" && (
+          <ProfileView
+            member={session}
+            onLogout={handleLogout}
+            onMembersChange={handleOwnProfileUpdated}
+            onSystemMessage={setSystemMessage}
+          />
+        )}
       </section>
 
       {quickViewActivity && (
@@ -290,6 +317,7 @@ export function App() {
               activities={activities}
               members={members}
               onClose={() => setMonthlyReportMonth(null)}
+              onSystemMessage={setSystemMessage}
               yyyyMm={monthlyReportMonth}
             />
           </div>

@@ -50,3 +50,28 @@ export function getActivityStatus(dateIso: string, today = new Date()): Activity
   const todayIso = today.toISOString().slice(0, 10);
   return dateIso <= todayIso ? "완료" : "예정";
 }
+
+// In Electron this opens a native "Save As" dialog. In the dev-only browser fallback, the
+// generated workbook streams back as a normal file download instead.
+export async function exportMonthlyReportExcel(yyyyMm: string): Promise<{ ok: boolean; path?: string; error?: string }> {
+  if (window.clubApp?.exportMonthlyExcel) {
+    return window.clubApp.exportMonthlyExcel(yyyyMm);
+  }
+
+  const response = await fetch(`/api/export-monthly-excel?yyyyMm=${encodeURIComponent(yyyyMm)}`);
+
+  if (!response.ok) {
+    return { ok: false, error: "엑셀 파일 생성에 실패했습니다." };
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = url;
+  anchor.download = `club-management-${yyyyMm}-monthly-report.xlsx`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+
+  return { ok: true };
+}

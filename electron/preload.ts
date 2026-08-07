@@ -10,7 +10,8 @@ contextBridge.exposeInMainWorld("clubApp", {
   addMember: (input: unknown) => ipcRenderer.invoke("members:add", input),
   updateMember: (input: unknown) => ipcRenderer.invoke("members:update", input),
   removeMember: (id: string) => ipcRenderer.invoke("members:remove", id),
-  importMembers: (rows: unknown) => ipcRenderer.invoke("members:import", rows),
+  importMembers: (rows: unknown, mode: "append" | "replace") => ipcRenderer.invoke("members:import", rows, mode),
+  readAssetsMembersFile: (format: "json" | "txt") => ipcRenderer.invoke("assets:readMembersFile", format),
 
   login: (knoxId: string, password: string) => ipcRenderer.invoke("auth:login", knoxId, password),
 
@@ -23,5 +24,7 @@ contextBridge.exposeInMainWorld("clubApp", {
   pickFile: () => ipcRenderer.invoke("dialog:pickFile"),
   scanMediaFolder: (category: "Photos" | "Receipts" | "Expenses", yyyyMm: string, week: number) =>
     ipcRenderer.invoke("media:scanFolder", category, yyyyMm, week),
-  findPlanFile: (yyyyMm: string, week: number) => ipcRenderer.invoke("media:findPlanFile", yyyyMm, week)
+  findPlanFile: (yyyyMm: string, week: number) => ipcRenderer.invoke("media:findPlanFile", yyyyMm, week),
+  openPath: (filePath: string) => ipcRenderer.invoke("shell:openPath", filePath),
+  exportMonthlyExcel: (yyyyMm: string) => ipcRenderer.invoke("export:monthlyExcel", yyyyMm)
 });

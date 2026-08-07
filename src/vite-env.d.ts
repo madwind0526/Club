@@ -11,7 +11,8 @@ interface ClubApp {
   addMember: (input: unknown) => Promise<PublicMember[]>;
   updateMember: (input: unknown) => Promise<PublicMember[]>;
   removeMember: (id: string) => Promise<PublicMember[]>;
-  importMembers: (rows: unknown) => Promise<PublicMember[]>;
+  importMembers: (rows: unknown, mode: "append" | "replace") => Promise<PublicMember[]>;
+  readAssetsMembersFile: (format: "json" | "txt") => Promise<string | null>;
 
   login: (knoxId: string, password: string) => Promise<LoginResult>;
 
@@ -28,6 +29,8 @@ interface ClubApp {
     week: number
   ) => Promise<MediaScanResult>;
   findPlanFile: (yyyyMm: string, week: number) => Promise<{ path: string; name: string } | null>;
+  openPath: (filePath: string) => Promise<{ ok: boolean; error?: string }>;
+  exportMonthlyExcel: (yyyyMm: string) => Promise<{ ok: boolean; path?: string; error?: string }>;
 }
 
 declare global {

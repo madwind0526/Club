@@ -2,17 +2,21 @@ import { useRef, useState } from "react";
 import {
   addMember,
   downloadMembersJson,
+  downloadMembersText,
   importMembers,
   parseMembersJson,
+  parseMembersText,
+  readAssetsMembersFile,
   removeMember,
   updateMember,
   type MemberDraft
 } from "../../data/membersStore";
-import type { MemberGrade, MemberRole, PublicMember } from "../../types/domain";
+import type { AppSettings, MemberGrade, MemberRole, PublicMember } from "../../types/domain";
 
 interface MembersViewProps {
   members: PublicMember[];
   currentMember: PublicMember;
+  settings: AppSettings;
   onMembersChange: (members: PublicMember[]) => void;
   onSystemMessage: (message: string) => void;
 }
@@ -28,13 +32,14 @@ const emptyDraft: MemberDraft = {
   note: ""
 };
 
-export function MembersView({ members, currentMember, onMembersChange, onSystemMessage }: MembersViewProps) {
+export function MembersView({ members, currentMember, settings, onMembersChange, onSystemMessage }: MembersViewProps) {
   const isAdmin = currentMember.role === "admin";
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<MemberDraft>(emptyDraft);
   const [password, setPassword] = useState("");
   const [deleteCandidate, setDeleteCandidate] = useState<PublicMember | null>(null);
+  const [isAutoImporting, setIsAutoImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const update = <Key extends keyof MemberDraft>(key: Key, value: MemberDraft[Key]) => {
@@ -94,22 +99,66 @@ export function MembersView({ members, currentMember, onMembersChange, onSystemM
   };
 
   const handleExport = () => {
-    downloadMembersJson(members);
-    onSystemMessage("회원 목록을 JSON으로 내보냈습니다.");
+    if (settings.memberImportFormat === "json") {
+      downloadMembersJson(members);
+    } else {
+      downloadMembersText(members);
+    }
+
+    onSystemMessage(`회원 목록을 ${settings.memberImportFormat.toUpperCase()}로 내보냈습니다.`);
   };
 
-  const handleImportFile = async (file: File) => {
-    const text = await file.text();
-    const rows = parseMembersJson(text);
-
+  const applyImportedRows = async (rows: MemberDraft[], sourceLabel: string) => {
     if (rows.length === 0) {
-      onSystemMessage("불러올 회원 데이터가 없습니다. (JSON 형식을 확인해 주세요)");
+      onSystemMessage(`불러올 회원 데이터가 없습니다. (${sourceLabel} 형식을 확인해 주세요)`);
       return;
     }
 
-    const nextMembers = await importMembers(rows);
+    const beforeCount = members.length;
+    const nextMembers = await importMembers(rows, settings.memberImportMode);
+    const modeLabel = settings.memberImportMode === "replace" ? "교체" : "추가";
+    // Knox ID duplicates are silently skipped server-side - diff the counts to report how many.
+    const addedCount = settings.memberImportMode === "replace" ? nextMembers.length : nextMembers.length - beforeCount;
+    const skippedCount = rows.length - addedCount;
+
     onMembersChange(nextMembers);
-    onSystemMessage(`${rows.length}명의 회원을 불러왔습니다. (초기 비밀번호: Knox ID)`);
+    onSystemMessage(
+      skippedCount > 0
+        ? `${sourceLabel}에서 ${addedCount}명을 ${modeLabel}했습니다. (Knox ID 중복 ${skippedCount}명 제외, 초기 비밀번호: Knox ID)`
+        : `${sourceLabel}에서 ${addedCount}명을 불러와 ${modeLabel}했습니다. (초기 비밀번호: Knox ID)`
+    );
+  };
+
+  // Manual file picker - the selected file is parsed according to the format currently
+  // configured in Settings, matching what "내보내기" produces.
+  const handleManualImportFile = async (file: File) => {
+    const text = await file.text();
+    const rows = settings.memberImportFormat === "json" ? parseMembersJson(text) : parseMembersText(text);
+
+    await applyImportedRows(rows, file.name);
+  };
+
+  // Reads assets/members.json or assets/members.txt directly, no file dialog.
+  const handleAutoImport = async () => {
+    const format = settings.memberImportFormat;
+    const fileName = format === "json" ? "members.json" : "members.txt";
+
+    setIsAutoImporting(true);
+
+    try {
+      const text = await readAssetsMembersFile(format);
+
+      if (!text) {
+        onSystemMessage(`assets/${fileName} 파일을 찾을 수 없습니다.`);
+        return;
+      }
+
+      const rows = format === "json" ? parseMembersJson(text) : parseMembersText(text);
+
+      await applyImportedRows(rows, `assets/${fileName}`);
+    } finally {
+      setIsAutoImporting(false);
+    }
   };
 
   return (
@@ -122,18 +171,21 @@ export function MembersView({ members, currentMember, onMembersChange, onSystemM
               불러오기
             </button>
             <input
-              accept=".json"
+              accept={settings.memberImportFormat === "json" ? ".json" : ".txt"}
               hidden
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) {
-                  void handleImportFile(file);
+                  void handleManualImportFile(file);
                 }
                 event.target.value = "";
               }}
               ref={fileInputRef}
               type="file"
             />
+            <button className="btn btn-sm" disabled={isAutoImporting} onClick={handleAutoImport} type="button">
+              {isAutoImporting ? "불러오는 중..." : "자동불러오기"}
+            </button>
             <button className="btn btn-sm" onClick={handleExport} type="button">
               내보내기
             </button>

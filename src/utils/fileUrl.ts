@@ -26,3 +26,39 @@ export function toDisplayableFileUrl(pathOrUrl: string): string {
 
   return `file://${encodeURI(withLeadingSlash)}`;
 }
+
+const PLAN_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".gif", ".png"]);
+const PLAN_DOC_EXTENSIONS = new Set([".doc", ".docx"]);
+const PLAN_SHEET_EXTENSIONS = new Set([".xls", ".xlsx"]);
+const PLAN_SLIDE_EXTENSIONS = new Set([".ppt", ".pptx"]);
+
+export type PlanFileKind = "image" | "pdf" | "doc" | "sheet" | "slide" | "other";
+
+// Determines how a plan-file attachment is shown as a thumbnail and previewed: an image renders
+// inline, a PDF renders inline in an iframe, everything else (doc/xls/ppt and their -x variants)
+// gets an icon tile and can only be previewed by opening it in the OS default application.
+export function getPlanFileKind(filePath: string): PlanFileKind {
+  const extension = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
+
+  if (PLAN_IMAGE_EXTENSIONS.has(extension)) {
+    return "image";
+  }
+
+  if (extension === ".pdf") {
+    return "pdf";
+  }
+
+  if (PLAN_DOC_EXTENSIONS.has(extension)) {
+    return "doc";
+  }
+
+  if (PLAN_SHEET_EXTENSIONS.has(extension)) {
+    return "sheet";
+  }
+
+  if (PLAN_SLIDE_EXTENSIONS.has(extension)) {
+    return "slide";
+  }
+
+  return "other";
+}

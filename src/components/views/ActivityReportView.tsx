@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { formatYyMm, formatYyyyMm } from "../../data/activitiesStore";
 import { findPlanFile, pickFile, scanMediaFolder } from "../../data/mediaStore";
+import { PlanFileControls } from "./PlanFileControls";
 import type { Activity, ExpenseItem, PublicMember, ReceiptItem } from "../../types/domain";
 
 interface ActivityReportViewProps {
@@ -131,7 +132,9 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
   const [newAttendeeId, setNewAttendeeId] = useState("");
   const [isFindingPlanFile, setIsFindingPlanFile] = useState(false);
 
-  const planFileName = draft.planFilePath ? draft.planFilePath.split(/[\\/]/).pop() : null;
+  const planFile = draft.planFilePath
+    ? { path: draft.planFilePath, name: draft.planFilePath.split(/[\\/]/).pop() ?? draft.planFilePath }
+    : null;
 
   const attendeeRows = draft.attendeeIds
     .map((id) => members.find((member) => member.id === id))
@@ -223,7 +226,7 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
           <button className="btn btn-primary" onClick={handleSave} type="button">
             저장
           </button>
-          <button className="btn" onClick={onClose} type="button">
+          <button className="btn btn-primary" onClick={onClose} type="button">
             닫기
           </button>
         </div>
@@ -312,15 +315,13 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
         <div className="view-header">
           <h2>활동 계획서</h2>
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <button className="btn btn-sm" onClick={handlePickPlanFile} type="button">
-            파일 첨부
-          </button>
-          <button className="btn btn-sm" disabled={isFindingPlanFile} onClick={handleAutoDetectPlanFile} type="button">
-            {isFindingPlanFile ? "찾는 중..." : "자동 첨부"}
-          </button>
-          <span className="view-subtitle">{planFileName ?? "첨부된 파일 없음"}</span>
-        </div>
+        <PlanFileControls
+          isFinding={isFindingPlanFile}
+          onAutoDetect={handleAutoDetectPlanFile}
+          onPick={handlePickPlanFile}
+          onSystemMessage={onSystemMessage}
+          planFile={planFile}
+        />
       </div>
 
       <div className="card" style={{ marginTop: 24 }}>

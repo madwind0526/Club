@@ -4,9 +4,22 @@ import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { buildMonthlyReportWorkbook } from "./server/excelExport.js";
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]);
-const PLAN_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".xls", ".xlsx", ".ppt", ".pptx", ".doc", ".docx"]);
+const PLAN_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".png",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".pdf"
+]);
 const IMAGE_CONTENT_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
@@ -129,17 +142,47 @@ function clubDevApiPlugin() {
           return;
         }
 
-        const rows = JSON.parse((await readRequestBody(request)) || "[]");
-        const members = await readJson<Array<Record<string, unknown>>>("members.json", []);
-        const imported = rows.map((row: Record<string, unknown>, index: number) => ({
-          ...row,
-          id: `member-${Date.now()}-${index}-${Math.round(Math.random() * 1000)}`,
-          passwordHash: hashPassword(String(row.knoxId ?? ""))
-        }));
-        const merged = [...members, ...imported];
+        const body = JSON.parse((await readRequestBody(request)) || "{}");
+        const rows: Array<Record<string, unknown>> = body.rows ?? [];
+        const mode: "append" | "replace" = body.mode ?? "append";
+        const existing = mode === "replace" ? [] : await readJson<Array<Record<string, unknown>>>("members.json", []);
+        // Skip rows whose Knox ID already exists (in the current roster, or earlier in this
+        // same batch) - Knox ID is how login and every other lookup identifies a member.
+        const seenKnoxIds = new Set(existing.map((member) => member.knoxId));
+        const imported: Array<Record<string, unknown>> = [];
+
+        rows.forEach((row: Record<string, unknown>, index: number) => {
+          const knoxId = String(row.knoxId ?? "");
+
+          if (seenKnoxIds.has(knoxId)) {
+            return;
+          }
+
+          seenKnoxIds.add(knoxId);
+          imported.push({
+            ...row,
+            id: `member-${Date.now()}-${index}-${Math.round(Math.random() * 1000)}`,
+            passwordHash: hashPassword(knoxId)
+          });
+        });
+
+        const merged = [...existing, ...imported];
 
         await writeJson("members.json", merged);
         sendJson(response, 200, merged.map(toPublicMember));
+      });
+
+      server.middlewares.use("/api/assets-members-file", async (request, response) => {
+        const url = new URL(request.url ?? "", "http://127.0.0.1");
+        const format = url.searchParams.get("format") === "json" ? "json" : "txt";
+        const fileName = format === "json" ? "members.json" : "members.txt";
+
+        try {
+          const content = await readFile(path.join(process.cwd(), "assets", fileName), "utf8");
+          sendJson(response, 200, content);
+        } catch {
+          sendJson(response, 200, null);
+        }
       });
 
       server.middlewares.use("/api/members", async (request, response) => {
@@ -170,8 +213,12 @@ function clubDevApiPlugin() {
         }
 
         if (request.method === "PUT") {
-          const input = JSON.parse((await readRequestBody(request)) || "{}");
-          const nextMembers = members.map((member) => (member.id === input.id ? { ...member, ...input } : member));
+          const { newPassword, ...rest } = JSON.parse((await readRequestBody(request)) || "{}");
+          const nextMembers = members.map((member) =>
+            member.id === rest.id
+              ? { ...member, ...rest, ...(newPassword ? { passwordHash: hashPassword(newPassword) } : {}) }
+              : member
+          );
 
           await writeJson("members.json", nextMembers);
           return sendJson(response, 200, nextMembers.map(toPublicMember));
@@ -236,6 +283,32 @@ function clubDevApiPlugin() {
 
         response.statusCode = 405;
         response.end();
+      });
+
+      server.middlewares.use("/api/export-monthly-excel", async (request, response) => {
+        const url = new URL(request.url ?? "", "http://127.0.0.1");
+        const yyyyMm = url.searchParams.get("yyyyMm") ?? "";
+
+        if (!/^\d{4}-\d{2}$/.test(yyyyMm)) {
+          response.statusCode = 400;
+          response.end();
+          return;
+        }
+
+        try {
+          const workbook = await buildMonthlyReportWorkbook(dataDir, yyyyMm);
+          const buffer = await workbook.xlsx.writeBuffer();
+
+          response.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+          response.setHeader(
+            "Content-Disposition",
+            `attachment; filename="club-management-${yyyyMm}-monthly-report.xlsx"`
+          );
+          response.end(Buffer.from(buffer));
+        } catch {
+          response.statusCode = 500;
+          response.end();
+        }
       });
 
       server.middlewares.use("/api/media-scan", async (request, response) => {

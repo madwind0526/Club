@@ -45,3 +45,13 @@ export async function findPlanFile(yyyyMm: string, week: number): Promise<{ path
 
   return response.ok ? response.json() : null;
 }
+
+// Opens a file with the OS default application - used as the preview fallback for plan-file
+// types that can't be rendered inline (doc/xls/ppt and their -x variants). Electron-only.
+export async function openFileExternally(filePath: string): Promise<{ ok: boolean; error?: string }> {
+  if (window.clubApp?.openPath) {
+    return window.clubApp.openPath(filePath);
+  }
+
+  return { ok: false, error: "Electron 앱에서만 파일을 열 수 있습니다." };
+}

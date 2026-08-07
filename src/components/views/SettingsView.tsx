@@ -152,7 +152,47 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
           />
         </div>
 
-        <div className="form-actions">
+        <div className="form-field">
+          <label>회원 불러오기 파일 형식 (assets/members.json 또는 assets/members.txt)</label>
+          <div className="segmented-control">
+            <button
+              className={draft.memberImportFormat === "txt" ? "segmented-option active" : "segmented-option"}
+              onClick={() => update("memberImportFormat", "txt")}
+              type="button"
+            >
+              TXT
+            </button>
+            <button
+              className={draft.memberImportFormat === "json" ? "segmented-option active" : "segmented-option"}
+              onClick={() => update("memberImportFormat", "json")}
+              type="button"
+            >
+              JSON
+            </button>
+          </div>
+        </div>
+
+        <div className="form-field">
+          <label>회원 불러오기 방식</label>
+          <div className="segmented-control">
+            <button
+              className={draft.memberImportMode === "append" ? "segmented-option active" : "segmented-option"}
+              onClick={() => update("memberImportMode", "append")}
+              type="button"
+            >
+              추가
+            </button>
+            <button
+              className={draft.memberImportMode === "replace" ? "segmented-option active" : "segmented-option"}
+              onClick={() => update("memberImportMode", "replace")}
+              type="button"
+            >
+              교체
+            </button>
+          </div>
+        </div>
+
+        <div className="form-actions" style={{ justifyContent: "flex-end" }}>
           <button className="btn btn-primary" disabled={isSaving} onClick={handleSave} type="button">
             {isSaving ? "저장 중..." : "저장"}
           </button>

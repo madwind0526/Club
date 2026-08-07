@@ -85,7 +85,11 @@
     "date": "2026-07-04",
     "weekOfMonth": 1,
     "content": "7월 정기 모임입니다. 상반기 활동을 되돌아보고 하반기 활동 계획을 논의했습니다.",
-    "attendeeIds": ["member-admin-seed", "member-002", "member-004"],
+    "attendeeIds": [
+      "member-admin-seed",
+      "member-002",
+      "member-004"
+    ],
     "photoFileNames": [],
     "receiptFileNames": [],
     "expenseFileNames": [],
@@ -108,11 +112,30 @@
     "date": "2026-07-11",
     "weekOfMonth": 2,
     "content": "저녁 시간을 이용해 한강공원에서 함께 러닝했습니다. 반포 코스로 약 5km를 뛰었습니다.",
-    "attendeeIds": ["member-003", "member-005"],
-    "photoFileNames": [],
-    "receiptFileNames": [],
-    "expenseFileNames": [],
-    "receipts": [],
+    "attendeeIds": [
+      "member-003",
+      "member-005"
+    ],
+    "photoFileNames": [
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek2%5C1d300f6b28ddc84e276c85b681959adf.jpg",
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek2%5C3cb2fbd2bd10cbc6ca7583dcc53982d8.jpg"
+    ],
+    "receiptFileNames": [
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek2%5Cd1d0dd5dec48992900c2485981cc4941.jpg",
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek2%5C%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C.png"
+    ],
+    "expenseFileNames": [
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CExpenses%5C2026-07%5CWeek2%5C%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C.png"
+    ],
+    "receipts": [
+      {
+        "id": "line-1786110546038",
+        "date": "2026-07-15",
+        "item": "음료수",
+        "price": 30000,
+        "note": ""
+      }
+    ],
     "expenses": [
       {
         "id": "expense-2026-07-11-1",
@@ -139,21 +162,22 @@
       "member-006"
     ],
     "photoFileNames": [
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5CKakaoTalk_20260219_172332280.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5CKakaoTalk_20260219_172438911.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5CKakaoTalk_20260219_172438911_01.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5CKakaoTalk_20260219_172438911_02.jpg"
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5C12cc56e16a2efc307256301611c3e6f6.jpg",
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5C431710cd9fa45b9f4f68fc8f6a9211f1.jpg",
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5C6af0dd154e73264b3e2302e0b86867d1.jpg",
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5Ccouple-jogging-running-outdoors-park-near-water-young-bearded-man-woman-exercising-together-morning.jpg",
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5Cf8f2bdb941d41eb0e17257a00778b4dd.jpg",
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5Cgroup-people-working-out-together-outdoors.jpg"
     ],
     "receiptFileNames": [
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek3%5CKakaoTalk_20260330_043022183_07.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek3%5CKakaoTalk_20260330_043022183_08.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek3%5CKakaoTalk_20260330_043022183_09.jpg"
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek3%5C29c7171a09245a3d3a93602ef5416487.jpg",
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek3%5Ceed8eaca55ee09ad9e13bf68826e6cf8.jpg",
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek3%5Cf10f991d29d72301227ca441cf2f8678.jpg",
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek3%5Cf456d7aa7e25c64a484547a02b91a129.jpg"
     ],
     "expenseFileNames": [
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CExpenses%5C2026-07%5CWeek3%5C1779505958849-019e52d1-e4a2-7130-bdc6-d9d0b7ef24bd.jpeg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CExpenses%5C2026-07%5CWeek3%5C1779506004988-019e52d1-e4a2-7821-a9b7-09cbb421f40e.jpeg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CExpenses%5C2026-07%5CWeek3%5C1779506209482-019e52d5-afa7-72c9-9e2f-1a956aede087.jpeg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CExpenses%5C2026-07%5CWeek3%5C1779506221607-019e52d5-afa7-70d3-adff-4087f5c4b95c.png"
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CExpenses%5C2026-07%5CWeek3%5C53f90144867de2879536cdb8f79b4064.jpg",
+      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CExpenses%5C2026-07%5CWeek3%5C6a779c505d26715902154f30b2951484.jpg"
     ],
     "receipts": [
       {
@@ -204,7 +228,9 @@
     "date": "2026-07-25",
     "weekOfMonth": 4,
     "content": "무더위를 피해 실내에서 즐기는 보드게임 모임입니다. 강남역 근처 보드게임 카페에서 진행했습니다.",
-    "attendeeIds": ["member-007"],
+    "attendeeIds": [
+      "member-007"
+    ],
     "photoFileNames": [],
     "receiptFileNames": [],
     "expenseFileNames": [],

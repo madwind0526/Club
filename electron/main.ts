@@ -1,8 +1,9 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from "electron";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { buildMonthlyReportWorkbook } from "../server/excelExport.js";
 
 // The renderer is loaded from an http(s) origin (Vite dev server / packaged app origin), and
 // Chromium refuses to load file:// as a subresource from a non-file:// page. Local files (club
@@ -35,7 +36,19 @@ interface StoredMember {
 }
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]);
-const PLAN_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".xls", ".xlsx", ".ppt", ".pptx", ".doc", ".docx"]);
+const PLAN_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".png",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".pdf"
+]);
 
 const dataDir = path.resolve(process.cwd(), process.env.CLUB_DATA_DIR ?? "data/runtime");
 
@@ -118,13 +131,21 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("members:update", async (_event, input: Omit<StoredMember, "passwordHash">) => {
-  const members = await readJson<StoredMember[]>("members.json", []);
-  const nextMembers = members.map((member) => (member.id === input.id ? { ...member, ...input } : member));
+ipcMain.handle(
+  "members:update",
+  async (_event, input: Omit<StoredMember, "passwordHash"> & { newPassword?: string }) => {
+    const { newPassword, ...rest } = input;
+    const members = await readJson<StoredMember[]>("members.json", []);
+    const nextMembers = members.map((member) =>
+      member.id === rest.id
+        ? { ...member, ...rest, ...(newPassword ? { passwordHash: hashPassword(newPassword) } : {}) }
+        : member
+    );
 
-  await writeJson("members.json", nextMembers);
-  return nextMembers.map(toPublicMember);
-});
+    await writeJson("members.json", nextMembers);
+    return nextMembers.map(toPublicMember);
+  }
+);
 
 ipcMain.handle("members:remove", async (_event, id: string) => {
   const members = await readJson<StoredMember[]>("members.json", []);
@@ -136,20 +157,47 @@ ipcMain.handle("members:remove", async (_event, id: string) => {
 
 ipcMain.handle(
   "members:import",
-  async (_event, rows: Array<Omit<StoredMember, "id" | "passwordHash">>) => {
-    const members = await readJson<StoredMember[]>("members.json", []);
-    const imported = rows.map((row, index) => ({
-      ...row,
-      id: `member-${Date.now()}-${index}-${Math.round(Math.random() * 1000)}`,
-      passwordHash: hashPassword(row.knoxId)
-    }));
+  async (
+    _event,
+    rows: Array<Omit<StoredMember, "id" | "passwordHash">>,
+    mode: "append" | "replace" = "append"
+  ) => {
+    const existing = mode === "replace" ? [] : await readJson<StoredMember[]>("members.json", []);
+    // Skip rows whose Knox ID already exists (in the current roster, or earlier in this same
+    // batch) - Knox ID is how login and every other lookup identifies a member.
+    const seenKnoxIds = new Set(existing.map((member) => member.knoxId));
+    const imported: StoredMember[] = [];
 
-    const merged = [...members, ...imported];
+    rows.forEach((row, index) => {
+      if (seenKnoxIds.has(row.knoxId)) {
+        return;
+      }
+
+      seenKnoxIds.add(row.knoxId);
+      imported.push({
+        ...row,
+        id: `member-${Date.now()}-${index}-${Math.round(Math.random() * 1000)}`,
+        passwordHash: hashPassword(row.knoxId)
+      });
+    });
+
+    const merged = [...existing, ...imported];
 
     await writeJson("members.json", merged);
     return merged.map(toPublicMember);
   }
 );
+
+ipcMain.handle("assets:readMembersFile", async (_event, format: "json" | "txt") => {
+  const fileName = format === "json" ? "members.json" : "members.txt";
+  const filePath = path.join(process.cwd(), "assets", fileName);
+
+  try {
+    return await readFile(filePath, "utf8");
+  } catch {
+    return null;
+  }
+});
 
 ipcMain.handle("auth:login", async (_event, knoxId: string, password: string) => {
   const members = await readJson<StoredMember[]>("members.json", []);
@@ -160,6 +208,34 @@ ipcMain.handle("auth:login", async (_event, knoxId: string, password: string) =>
   }
 
   return { ok: true, member: toPublicMember(found) };
+});
+
+ipcMain.handle("shell:openPath", async (_event, filePath: string) => {
+  const result = await shell.openPath(filePath);
+
+  return result === "" ? { ok: true } : { ok: false, error: result };
+});
+
+ipcMain.handle("export:monthlyExcel", async (event, yyyyMm: string) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const dialogOptions = {
+    defaultPath: `club-management-${yyyyMm}-monthly-report.xlsx`,
+    filters: [{ name: "Excel Workbook", extensions: ["xlsx"] }]
+  };
+  const saveResult = win ? await dialog.showSaveDialog(win, dialogOptions) : await dialog.showSaveDialog(dialogOptions);
+
+  if (saveResult.canceled || !saveResult.filePath) {
+    return { ok: false };
+  }
+
+  try {
+    const workbook = await buildMonthlyReportWorkbook(dataDir, yyyyMm);
+
+    await workbook.xlsx.writeFile(saveResult.filePath);
+    return { ok: true, path: saveResult.filePath };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "엑셀 파일 생성에 실패했습니다." };
+  }
 });
 
 ipcMain.handle("activities:list", () => readJson("activities.json", []));

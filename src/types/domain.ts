@@ -76,12 +76,18 @@ export interface BoardPost {
   comments: BoardComment[];
 }
 
+export type MemberImportFormat = "json" | "txt";
+
+export type MemberImportMode = "append" | "replace";
+
 export interface AppSettings {
   theme: ThemeMode;
   clubName: string;
   clubLogoPath: string;
   clubIntro: string;
   dataRootFolder: string;
+  memberImportFormat: MemberImportFormat;
+  memberImportMode: MemberImportMode;
 }
 
 export interface MediaScanResult {

@@ -17,22 +17,25 @@ npm run build   # tsc -b && vite build && tsc -p tsconfig.node.json
 
 ## Architecture
 
-- **`electron/main.ts`** — Main process. Creates the BrowserWindow and exposes IPC handlers for members/activities/board/settings CRUD (JSON files under `data/runtime/`), `auth:login` (Knox ID + SHA-256 password check), `dialog:pickFile` (활동 계획서 첨부), and `media:scanFolder` (scans `<dataRootFolder>/{Photos,Receipts,Expenses}/YYYY-MM/WeekN/`).
+- **`electron/main.ts`** — Main process. Creates the BrowserWindow, registers the `club-media://` protocol (see below), and exposes IPC handlers for members/activities/board/settings CRUD (JSON files under `data/runtime/`), `auth:login` (Knox ID + SHA-256 password check), `dialog:pickFile` / `shell:openPath`, `media:scanFolder` / `media:findPlanFile`, `assets:readMembersFile`, and `export:monthlyExcel` (native Save-As dialog + `server/excelExport.ts`).
 - **`electron/preload.ts`** — Exposes `window.clubApp` to the renderer via contextBridge.
-- **`vite.config.mts`** — React plugin + `/api/*` dev-only middleware mirroring the IPC handlers, so `npm run dev` works in a plain browser without Electron (same dual-path pattern as SNS-Reader).
-- **`src/data/*Store.ts`** — One module per entity (`settingsStore`, `membersStore`, `activitiesStore`, `boardStore`, `authStore`). Each tries `window.clubApp?.xxx?.()` first, falls back to `fetch('/api/...')`.
-- **`src/App.tsx`** — Renders `LoginView` full-screen when no session, otherwise the app shell (`TopToolbar` + `Sidebar` + view + `system-message` footer) from `src/components/layout/`.
-- **`src/components/views/*`** — One component per screen (Home, Activities, ActivityRegister, ActivityReport, WeeklyReport, MonthlyReport + MonthlyReportDetail, Board, Members, Settings, Profile, Login). `ActivityQuickViewModal` and `ActivityReportView` are rendered as popups from `App.tsx`, not full-page routes.
-- **`src/types/domain.ts`** — Member / Activity / BoardPost / AppSettings types shared by client and (loosely, via JSDoc-equivalent shapes) the electron main process.
+- **`vite.config.mts`** — React plugin + `/api/*` dev-only middleware mirroring every IPC handler above (including `/api/export-monthly-excel`, which streams the xlsx as a normal file download), so `npm run dev` works in a plain browser without Electron (same dual-path pattern as SNS-Reader).
+- **`server/excelExport.ts`** — Node-only module (no renderer imports) shared by `electron/main.ts` and `vite.config.mts`, building the monthly-report `.xlsx` workbook with ExcelJS. Included in `tsconfig.node.json`.
+- **Local file rendering (`club-media://`)** — The renderer runs on an http(s) origin, so Chromium blocks `file://` as a subresource. `toDisplayableFileUrl()` (`src/utils/fileUrl.ts`) rewrites a raw OS path into `club-media://local/<encoded path>`, and `electron/main.ts` registers a privileged protocol handler that decodes it back and streams the file via `net.fetch`. Any code that needs to read the same file on disk (e.g. `server/excelExport.ts` embedding it into Excel) reverses the same encoding.
+- **`src/data/*Store.ts`** — One module per entity (`settingsStore`, `membersStore`, `activitiesStore`, `boardStore`, `authStore`, `mediaStore`). Each tries `window.clubApp?.xxx?.()` first, falls back to `fetch('/api/...')`.
+- **`src/App.tsx`** — Renders `LoginView` full-screen when no session, otherwise the app shell (`TopToolbar` + `Sidebar` + view + `system-message` footer) from `src/components/layout/`. `ActivityQuickViewModal`, `ActivityReportView`, and `MonthlyReportDetail` are all rendered as popups from `App.tsx`, not full-page routes.
+- **`src/components/views/*`** — One component per screen (Home, Activities, ActivityRegister, ActivityReport, WeeklyReport, MonthlyReport + MonthlyReportDetail, Board, Members, Settings, Profile, Login), plus shared pieces (`ActivityListTable`, `PlanFileControls`).
+- **`src/types/domain.ts`** — Member / Activity / BoardPost / AppSettings types shared by client and (loosely, via a duplicated shape — see `server/excelExport.ts`'s own interfaces) the Node-side code.
 
 ## Key Conventions
 
 - All UI text is in Korean. Code comments are English-only (see global rule G-01).
-- Data persists as local JSON files under `data/runtime/` (gitignored) — no database.
-- Passwords are stored as SHA-256 hashes and only ever compared inside the main process / dev-server middleware, never in renderer code.
-- Photos/receipts/expenses live under a user-configured "데이터 루트 폴더" (Settings), structured as `Photos|Receipts|Expenses/YYYY-MM/WeekN/`.
-- Visual design: true grayscale palette (not SNS-Reader's cream tone) — see `src/styles/app.css` `:root` tokens. No saturated accent color except a minimal red for destructive actions.
-- Weekly report (admin-only) lists all activities and opens the same report popup used elsewhere. Monthly report aggregates a month's activities into one combined view (photos grouped by week, merged receipt/expense tables, per-member attendance + sponsorship-amount table).
+- Data persists as local JSON files under `data/runtime/` — no database. These files **are committed** (sample/demo content), unlike a typical `.gitignore`'d local-data folder; keep that in mind before overwriting them with throwaway test data.
+- Passwords are stored as SHA-256 hashes and only ever compared/hashed inside the main process or the dev-server middleware, never in renderer code. `members:update` accepts an optional `newPassword` field (used by the Profile screen's self-service password change) alongside the normal profile fields.
+- Photos/receipts/expenses live under a user-configured "데이터 루트 폴더" (Settings), structured as `Photos|Receipts|Expenses/YYYY-MM/WeekN/`. The activity plan file lives at `<데이터 루트 폴더>/Plan/YYYY-MM-WeekN.<ext>` (jpg/jpeg/gif/png/doc/docx/xls/xlsx/ppt/pptx/pdf) — auto-detected by prefix match, so `2026-07-Week3.jpg` and `2026-07-Week3_아무거나.jpg` both match `2026-07-Week3`.
+- Member import/export format (JSON vs. tab-separated TXT) and mode (append vs. replace) are both configured in Settings and apply to all three of MembersView's 불러오기(file picker)/자동불러오기(reads `assets/members.json` or `assets/members.txt`)/내보내기 buttons. Import always skips rows whose Knox ID already exists.
+- Visual design: true grayscale palette (not SNS-Reader's cream tone) — see `src/styles/app.css` `:root` tokens. Completed/upcoming status badges are the one deliberate exception (green/blue), plus a minimal red for destructive actions.
+- Weekly report (admin-only) lists all activities and opens the same report popup used elsewhere. Monthly report aggregates a month's activities into one combined view (photos grouped by week, merged receipt/expense tables, per-member attendance + sponsorship-amount table) and can be exported to `.xlsx` (Summary + one sheet per week + 영수증/경비/회원 목록 sheets).
 
 ---
 

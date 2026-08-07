@@ -36,7 +36,7 @@ export async function addMember(draft: MemberDraft, password: string): Promise<P
   return response.json();
 }
 
-export async function updateMember(member: PublicMember): Promise<PublicMember[]> {
+export async function updateMember(member: PublicMember & { newPassword?: string }): Promise<PublicMember[]> {
   if (window.clubApp?.updateMember) {
     return window.clubApp.updateMember(member);
   }
@@ -60,18 +60,34 @@ export async function removeMember(id: string): Promise<PublicMember[]> {
 }
 
 // Newly imported members get their Knox ID as the initial password (they can change it later).
-export async function importMembers(rows: MemberDraft[]): Promise<PublicMember[]> {
+// mode "replace" discards the existing member list before adding the imported rows.
+export async function importMembers(
+  rows: MemberDraft[],
+  mode: "append" | "replace" = "append"
+): Promise<PublicMember[]> {
   if (window.clubApp?.importMembers) {
-    return window.clubApp.importMembers(rows);
+    return window.clubApp.importMembers(rows, mode);
   }
 
   const response = await fetch("/api/members/import", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(rows)
+    body: JSON.stringify({ rows, mode })
   });
 
   return response.json();
+}
+
+// Reads members.json/members.txt bundled under assets/, used by the "자동불러오기" button in
+// MembersView.
+export async function readAssetsMembersFile(format: "json" | "txt"): Promise<string | null> {
+  if (window.clubApp?.readAssetsMembersFile) {
+    return window.clubApp.readAssetsMembersFile(format);
+  }
+
+  const response = await fetch(`/api/assets-members-file?format=${format}`);
+
+  return response.ok ? response.json() : null;
 }
 
 export function downloadMembersJson(members: PublicMember[]) {
@@ -86,8 +102,45 @@ export function downloadMembersJson(members: PublicMember[]) {
   URL.revokeObjectURL(url);
 }
 
+const TEXT_HEADERS = ["이름", "Knox ID", "부서", "연락처", "가입 날짜", "회원 등급", "역할", "비고"];
+
+// Tab-separated, matching Excel's "텍스트(탭으로 구분)" .txt export - the same shape parseMembersText reads.
+export function membersToText(members: PublicMember[]) {
+  const lines = [TEXT_HEADERS.join("\t")];
+
+  members.forEach((member) => {
+    lines.push(
+      [member.name, member.knoxId, member.department, member.contact, member.joinDate, member.grade, member.role, member.note ?? ""].join(
+        "\t"
+      )
+    );
+  });
+
+  return lines.join("\n");
+}
+
+export function downloadMembersText(members: PublicMember[]) {
+  const text = membersToText(members);
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = url;
+  anchor.download = `club-members-${new Date().toISOString().slice(0, 10)}.txt`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 const VALID_GRADES: MemberGrade[] = ["회장", "총무", "감사", "정회원"];
 const VALID_ROLES: MemberRole[] = ["admin", "일반"];
+
+function toGrade(value: unknown): MemberGrade {
+  return VALID_GRADES.includes(value as MemberGrade) ? (value as MemberGrade) : "정회원";
+}
+
+function toRole(value: unknown): MemberRole {
+  return VALID_ROLES.includes(value as MemberRole) ? (value as MemberRole) : "일반";
+}
 
 export function parseMembersJson(jsonText: string): MemberDraft[] {
   let parsed: unknown;
@@ -110,9 +163,39 @@ export function parseMembersJson(jsonText: string): MemberDraft[] {
       department: String(entry.department ?? ""),
       contact: String(entry.contact ?? ""),
       joinDate: String(entry.joinDate ?? ""),
-      grade: VALID_GRADES.includes(entry.grade as MemberGrade) ? (entry.grade as MemberGrade) : "정회원",
-      role: VALID_ROLES.includes(entry.role as MemberRole) ? (entry.role as MemberRole) : "일반",
+      grade: toGrade(entry.grade),
+      role: toRole(entry.role),
       note: entry.note ? String(entry.note) : ""
     }))
+    .filter((draft) => draft.name && draft.knoxId);
+}
+
+// Accepts a plain-text export with one member per line, tab-separated (Excel's
+// "텍스트(탭으로 구분)" .txt format): 이름, Knox ID, 부서, 연락처, 가입 날짜, 회원 등급, 역할, 비고.
+// Falls back to comma-separated if the line has no tabs.
+export function parseMembersText(text: string): MemberDraft[] {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+
+  if (lines.length <= 1) {
+    return [];
+  }
+
+  return lines
+    .slice(1)
+    .map((line) => {
+      const fields = (line.includes("\t") ? line.split("\t") : line.split(",")).map((field) => field.trim());
+      const [name, knoxId, department, contact, joinDate, grade, role, note] = fields;
+
+      return {
+        name: name ?? "",
+        knoxId: knoxId ?? "",
+        department: department ?? "",
+        contact: contact ?? "",
+        joinDate: joinDate ?? "",
+        grade: toGrade(grade),
+        role: toRole(role),
+        note: note ?? ""
+      };
+    })
     .filter((draft) => draft.name && draft.knoxId);
 }
