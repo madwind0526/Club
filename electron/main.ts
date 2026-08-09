@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildMonthlyReportWorkbook } from "../server/excelExport.js";
+import { resolveAppPath, resolveCategoryFolder, resolvePlanFolder } from "../server/paths.js";
 
 // The renderer is loaded from an http(s) origin (Vite dev server / packaged app origin), and
 // Chromium refuses to load file:// as a subresource from a non-file:// page. Local files (club
@@ -33,6 +34,7 @@ interface StoredMember {
   grade: string;
   role: string;
   note?: string;
+  withdrawn: boolean;
 }
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]);
@@ -96,7 +98,8 @@ async function seedInitialAdmin() {
     joinDate: new Date().toISOString().slice(0, 10),
     grade: "회장",
     role: "admin",
-    note: "초기 관리자 계정 (Settings에서 회원 정보 수정 권장)"
+    note: "초기 관리자 계정 (Settings에서 회원 정보 수정 권장)",
+    withdrawn: false
   };
 
   await writeJson("members.json", [seedAdmin]);
@@ -116,13 +119,14 @@ ipcMain.handle("members:list", async () => {
 
 ipcMain.handle(
   "members:add",
-  async (_event, input: Omit<StoredMember, "id" | "passwordHash"> & { password: string }) => {
+  async (_event, input: Omit<StoredMember, "id" | "passwordHash" | "withdrawn"> & { password: string }) => {
     const members = await readJson<StoredMember[]>("members.json", []);
     const { password, ...rest } = input;
     const member: StoredMember = {
       ...rest,
       id: `member-${Date.now()}-${Math.round(Math.random() * 1000)}`,
-      passwordHash: hashPassword(password || rest.knoxId)
+      passwordHash: hashPassword(password || rest.knoxId),
+      withdrawn: false
     };
 
     members.push(member);
@@ -133,7 +137,7 @@ ipcMain.handle(
 
 ipcMain.handle(
   "members:update",
-  async (_event, input: Omit<StoredMember, "passwordHash"> & { newPassword?: string }) => {
+  async (_event, input: Omit<StoredMember, "passwordHash" | "withdrawn"> & { newPassword?: string }) => {
     const { newPassword, ...rest } = input;
     const members = await readJson<StoredMember[]>("members.json", []);
     const nextMembers = members.map((member) =>
@@ -147,9 +151,13 @@ ipcMain.handle(
   }
 );
 
+// Soft delete: a completed activity's attendeeIds still needs to resolve to a real name/note
+// afterward, so 삭제 marks the member withdrawn instead of erasing the record. MembersView hides
+// withdrawn members from the roster; attendee tables elsewhere still resolve their name and flag
+// them "탈퇴" in the 비고 column.
 ipcMain.handle("members:remove", async (_event, id: string) => {
   const members = await readJson<StoredMember[]>("members.json", []);
-  const nextMembers = members.filter((member) => member.id !== id);
+  const nextMembers = members.map((member) => (member.id === id ? { ...member, withdrawn: true } : member));
 
   await writeJson("members.json", nextMembers);
   return nextMembers.map(toPublicMember);
@@ -159,8 +167,9 @@ ipcMain.handle(
   "members:import",
   async (
     _event,
-    rows: Array<Omit<StoredMember, "id" | "passwordHash">>,
-    mode: "append" | "replace" = "append"
+    rows: Array<Omit<StoredMember, "id" | "passwordHash" | "withdrawn">>,
+    mode: "append" | "replace" = "append",
+    initialPassword?: string
   ) => {
     const existing = mode === "replace" ? [] : await readJson<StoredMember[]>("members.json", []);
     // Skip rows whose Knox ID already exists (in the current roster, or earlier in this same
@@ -177,7 +186,10 @@ ipcMain.handle(
       imported.push({
         ...row,
         id: `member-${Date.now()}-${index}-${Math.round(Math.random() * 1000)}`,
-        passwordHash: hashPassword(row.knoxId)
+        // A shared initial password applies to every imported row (admin included) when set;
+        // otherwise each row falls back to its own Knox ID, as before.
+        passwordHash: hashPassword(initialPassword || row.knoxId),
+        withdrawn: false
       });
     });
 
@@ -189,8 +201,11 @@ ipcMain.handle(
 );
 
 ipcMain.handle("assets:readMembersFile", async (_event, format: "json" | "txt") => {
+  const settings = await readJson<{ memberImportFilePath?: string } | null>("app-settings.json", null);
   const fileName = format === "json" ? "members.json" : "members.txt";
-  const filePath = path.join(process.cwd(), "assets", fileName);
+  const filePath = settings?.memberImportFilePath
+    ? resolveAppPath(settings.memberImportFilePath)
+    : path.join(process.cwd(), "assets", fileName);
 
   try {
     return await readFile(filePath, "utf8");
@@ -207,11 +222,15 @@ ipcMain.handle("auth:login", async (_event, knoxId: string, password: string) =>
     return { ok: false, error: "Knox ID 또는 비밀번호가 올바르지 않습니다." };
   }
 
+  if (found.withdrawn) {
+    return { ok: false, error: "탈퇴한 회원입니다." };
+  }
+
   return { ok: true, member: toPublicMember(found) };
 });
 
 ipcMain.handle("shell:openPath", async (_event, filePath: string) => {
-  const result = await shell.openPath(filePath);
+  const result = await shell.openPath(resolveAppPath(filePath));
 
   return result === "" ? { ok: true } : { ok: false, error: result };
 });
@@ -252,8 +271,13 @@ ipcMain.handle("board:save", async (_event, posts: unknown) => {
   return posts;
 });
 
-ipcMain.handle("dialog:pickFile", async () => {
-  const result = await dialog.showOpenDialog({ properties: ["openFile"] });
+// Without a parent window, showOpenDialog can open without stealing focus from the app window -
+// it's technically there, but looks like "nothing happened". Passing the calling window (same
+// pattern export:monthlyExcel already uses for showSaveDialog) keeps it properly in front.
+ipcMain.handle("dialog:pickFile", async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const options: Electron.OpenDialogOptions = { properties: ["openFile"] };
+  const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
 
   if (result.canceled || result.filePaths.length === 0) {
     return null;
@@ -263,18 +287,41 @@ ipcMain.handle("dialog:pickFile", async () => {
   return { path: filePath, name: path.basename(filePath) };
 });
 
+ipcMain.handle("dialog:pickFolder", async (event, defaultPath?: string) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const options: Electron.OpenDialogOptions = {
+    properties: ["openDirectory"],
+    ...(defaultPath ? { defaultPath: resolveAppPath(defaultPath) } : {})
+  };
+  const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  return { path: result.filePaths[0] };
+});
+
+type FolderSettings = {
+  dataRootFolder?: string;
+  photosFolder?: string;
+  receiptsFolder?: string;
+  expensesFolder?: string;
+  planFolder?: string;
+};
+
 ipcMain.handle(
   "media:scanFolder",
   async (_event, category: "Photos" | "Receipts" | "Expenses", yyyyMm: string, week: number) => {
-    const settings = await readJson<{ dataRootFolder?: string } | null>("app-settings.json", null);
-    const root = settings?.dataRootFolder;
+    const settings = await readJson<FolderSettings | null>("app-settings.json", null);
+    const categoryRoot = settings ? resolveCategoryFolder(settings, category) : null;
 
-    if (!root) {
+    if (!categoryRoot) {
       return { folder: "", files: [] };
     }
 
-    const folder = path.join(root, category, yyyyMm, `Week${week}`);
-    const entries = await readdir(folder, { withFileTypes: true }).catch(() => []);
+    const folder = path.join(categoryRoot, yyyyMm, `Week${week}`);
+    const entries = await readdir(resolveAppPath(folder), { withFileTypes: true }).catch(() => []);
     const files = entries
       .filter((entry) => entry.isFile() && IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
       .map((entry) => toClubMediaUrl(path.join(folder, entry.name)));
@@ -283,30 +330,49 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("media:findPlanFile", async (_event, yyyyMm: string, week: number) => {
-  const settings = await readJson<{ dataRootFolder?: string } | null>("app-settings.json", null);
-  const root = settings?.dataRootFolder;
+ipcMain.handle("media:findPlanFiles", async (_event, yyyyMm: string, week: number) => {
+  const settings = await readJson<FolderSettings | null>("app-settings.json", null);
+  const folder = settings ? resolvePlanFolder(settings) : null;
 
-  if (!root) {
-    return null;
+  if (!folder) {
+    return [];
   }
 
-  const folder = path.join(root, "Plan");
   const prefix = `${yyyyMm}-Week${week}`;
-  const entries = await readdir(folder, { withFileTypes: true }).catch(() => []);
-  const match = entries
+  const entries = await readdir(resolveAppPath(folder), { withFileTypes: true }).catch(() => []);
+  const matches = entries
     .filter(
       (entry) =>
         entry.isFile() && entry.name.startsWith(prefix) && PLAN_EXTENSIONS.has(path.extname(entry.name).toLowerCase())
     )
     .map((entry) => entry.name)
-    .sort()[0];
+    .sort();
 
-  if (!match) {
-    return null;
+  return matches.map((name) => ({ path: path.join(folder, name), name }));
+});
+
+ipcMain.handle("media:ensureFolders", async (_event, yyyyMm: string, week: number) => {
+  const settings = await readJson<FolderSettings | null>("app-settings.json", null);
+
+  if (!settings) {
+    return { ok: false };
   }
 
-  return { path: path.join(folder, match), name: match };
+  const categories: Array<"Photos" | "Receipts" | "Expenses"> = ["Photos", "Receipts", "Expenses"];
+  const targets = categories
+    .map((category) => resolveCategoryFolder(settings, category))
+    .filter((folder): folder is string => Boolean(folder))
+    .map((folder) => path.join(folder, yyyyMm, `Week${week}`));
+
+  const planFolder = resolvePlanFolder(settings);
+
+  if (planFolder) {
+    targets.push(planFolder);
+  }
+
+  await Promise.all(targets.map((folder) => mkdir(resolveAppPath(folder), { recursive: true }).catch(() => undefined)));
+
+  return { ok: true };
 });
 
 const createWindow = () => {
@@ -334,7 +400,7 @@ void app.whenReady().then(async () => {
     const url = new URL(request.url);
     const filePath = decodeURIComponent(url.pathname.replace(/^\//, ""));
 
-    return net.fetch(pathToFileURL(filePath).href);
+    return net.fetch(pathToFileURL(resolveAppPath(filePath)).href);
   });
 
   await seedInitialAdmin();

@@ -3,11 +3,17 @@ import { useState } from "react";
 import { openFileExternally } from "../../data/mediaStore";
 import { getPlanFileKind, toDisplayableFileUrl, type PlanFileKind } from "../../utils/fileUrl";
 
+interface PlanFile {
+  path: string;
+  name: string;
+}
+
 interface PlanFileControlsProps {
-  planFile: { path: string; name: string } | null;
+  planFiles: PlanFile[];
   isFinding: boolean;
   onPick: () => void;
   onAutoDetect: () => void;
+  onRemove: (path: string) => void;
   onSystemMessage: (message: string) => void;
 }
 
@@ -18,27 +24,65 @@ const ICON_BY_KIND: Partial<Record<PlanFileKind, typeof FileText>> = {
   slide: Presentation
 };
 
-export function PlanFileControls({ planFile, isFinding, onPick, onAutoDetect, onSystemMessage }: PlanFileControlsProps) {
+function PlanFileTile({
+  file,
+  onRemove,
+  onSystemMessage
+}: {
+  file: PlanFile;
+  onRemove: (path: string) => void;
+  onSystemMessage: (message: string) => void;
+}) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const kind = planFile ? getPlanFileKind(planFile.path) : "other";
+  const kind = getPlanFileKind(file.path);
+  const Icon = ICON_BY_KIND[kind] ?? File;
 
   const handleThumbnailClick = async () => {
-    if (!planFile) {
-      return;
-    }
-
     if (kind === "image" || kind === "pdf") {
       setIsPreviewOpen(true);
       return;
     }
 
-    const result = await openFileExternally(planFile.path);
+    const result = await openFileExternally(file.path);
 
-    onSystemMessage(result.ok ? `${planFile.name} 파일을 기본 프로그램으로 열었습니다.` : result.error || "파일을 열지 못했습니다.");
+    onSystemMessage(result.ok ? `${file.name} 파일을 기본 프로그램으로 열었습니다.` : result.error || "파일을 열지 못했습니다.");
   };
 
-  const Icon = ICON_BY_KIND[kind] ?? File;
+  return (
+    <>
+      <div className="thumbnail-item">
+        {kind === "image" ? (
+          <img alt="" className="thumbnail" onClick={handleThumbnailClick} src={toDisplayableFileUrl(file.path)} />
+        ) : (
+          <div className="thumbnail plan-file-icon-tile" onClick={handleThumbnailClick}>
+            <Icon size={30} />
+            <span>{file.name}</span>
+          </div>
+        )}
+        <button className="thumbnail-delete" onClick={() => onRemove(file.path)} title="삭제" type="button">
+          ×
+        </button>
+      </div>
 
+      {isPreviewOpen && (
+        <div className="image-preview-overlay" onClick={() => setIsPreviewOpen(false)}>
+          {kind === "image" ? (
+            <img alt="" className="image-preview-content" src={toDisplayableFileUrl(file.path)} />
+          ) : (
+            <iframe
+              className="pdf-preview-content"
+              onClick={(event) => event.stopPropagation()}
+              src={toDisplayableFileUrl(file.path)}
+              title="활동 계획서 미리보기"
+            />
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+export function PlanFileControls({ planFiles, isFinding, onPick, onAutoDetect, onRemove, onSystemMessage }: PlanFileControlsProps) {
   return (
     <>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -50,38 +94,13 @@ export function PlanFileControls({ planFile, isFinding, onPick, onAutoDetect, on
         </button>
       </div>
 
-      {planFile ? (
-        <div style={{ width: 120, marginTop: 10 }}>
-          {kind === "image" ? (
-            <img
-              alt=""
-              className="thumbnail"
-              onClick={handleThumbnailClick}
-              src={toDisplayableFileUrl(planFile.path)}
-            />
-          ) : (
-            <div className="thumbnail plan-file-icon-tile" onClick={handleThumbnailClick}>
-              <Icon size={30} />
-              <span>{planFile.name}</span>
-            </div>
-          )}
-        </div>
-      ) : (
+      {planFiles.length === 0 ? (
         <p className="thumbnail-empty">첨부된 파일 없음</p>
-      )}
-
-      {isPreviewOpen && planFile && (
-        <div className="image-preview-overlay" onClick={() => setIsPreviewOpen(false)}>
-          {kind === "image" ? (
-            <img alt="" className="image-preview-content" src={toDisplayableFileUrl(planFile.path)} />
-          ) : (
-            <iframe
-              className="pdf-preview-content"
-              onClick={(event) => event.stopPropagation()}
-              src={toDisplayableFileUrl(planFile.path)}
-              title="활동 계획서 미리보기"
-            />
-          )}
+      ) : (
+        <div className="thumbnail-grid" style={{ marginTop: 10 }}>
+          {planFiles.map((file) => (
+            <PlanFileTile file={file} key={file.path} onRemove={onRemove} onSystemMessage={onSystemMessage} />
+          ))}
         </div>
       )}
     </>

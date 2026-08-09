@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { formatYyMm, formatYyyyMm } from "../../data/activitiesStore";
-import { findPlanFile, pickFile, scanMediaFolder } from "../../data/mediaStore";
+import { findPlanFiles, pickFile, scanMediaFolder } from "../../data/mediaStore";
 import { PlanFileControls } from "./PlanFileControls";
 import type { Activity, ExpenseItem, PublicMember, ReceiptItem } from "../../types/domain";
 
@@ -132,15 +132,27 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
   const [newAttendeeId, setNewAttendeeId] = useState("");
   const [isFindingPlanFile, setIsFindingPlanFile] = useState(false);
 
-  const planFile = draft.planFilePath
-    ? { path: draft.planFilePath, name: draft.planFilePath.split(/[\\/]/).pop() ?? draft.planFilePath }
-    : null;
+  const planFiles = draft.planFilePaths.map((filePath) => ({
+    path: filePath,
+    name: filePath.split(/[\\/]/).pop() ?? filePath
+  }));
 
-  const attendeeRows = draft.attendeeIds
-    .map((id) => members.find((member) => member.id === id))
-    .filter((member): member is PublicMember => Boolean(member));
+  // A withdrawn (soft-deleted) member still needs to show up here with their real name - only
+  // the 비고 column changes, to "탈퇴". A truly missing record (data from before this existed)
+  // falls back to a placeholder rather than silently dropping the row and shrinking 참석 인원.
+  const attendeeRows = draft.attendeeIds.map((id) => {
+    const member = members.find((candidate) => candidate.id === id);
 
-  const availableMembers = members.filter((member) => !draft.attendeeIds.includes(member.id));
+    if (!member) {
+      return { id, name: "(알 수 없음)", knoxId: "", note: "탈퇴" };
+    }
+
+    return { id: member.id, name: member.name, knoxId: member.knoxId, note: member.withdrawn ? "탈퇴" : member.note ?? "" };
+  });
+
+  const availableMembers = members
+    .filter((member) => !member.withdrawn && !draft.attendeeIds.includes(member.id))
+    .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
   const addAttendee = () => {
     if (!newAttendeeId) {
@@ -194,7 +206,12 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
     const picked = await pickFile();
 
     if (picked) {
-      setDraft((current) => ({ ...current, planFilePath: picked.path }));
+      setDraft((current) => ({
+        ...current,
+        planFilePaths: current.planFilePaths.includes(picked.path)
+          ? current.planFilePaths
+          : [...current.planFilePaths, picked.path]
+      }));
       onSystemMessage(`활동 계획서를 첨부했습니다: ${picked.name}`);
     }
   };
@@ -203,17 +220,26 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
     setIsFindingPlanFile(true);
 
     try {
-      const found = await findPlanFile(formatYyyyMm(draft.date), draft.weekOfMonth);
+      const found = await findPlanFiles(formatYyyyMm(draft.date), draft.weekOfMonth);
 
-      if (found) {
-        setDraft((current) => ({ ...current, planFilePath: found.path }));
-        onSystemMessage(`계획서 파일을 자동으로 찾아 첨부했습니다: ${found.name}`);
+      if (found.length > 0) {
+        setDraft((current) => {
+          const existingPaths = new Set(current.planFilePaths);
+          const newPaths = found.map((file) => file.path).filter((filePath) => !existingPaths.has(filePath));
+
+          return { ...current, planFilePaths: [...current.planFilePaths, ...newPaths] };
+        });
+        onSystemMessage(`계획서 파일 ${found.length}개를 자동으로 찾아 첨부했습니다.`);
       } else {
         onSystemMessage("일치하는 계획서 파일을 찾지 못했습니다. (Plan 폴더와 파일명을 확인해 주세요)");
       }
     } finally {
       setIsFindingPlanFile(false);
     }
+  };
+
+  const handleRemovePlanFile = (filePath: string) => {
+    setDraft((current) => ({ ...current, planFilePaths: current.planFilePaths.filter((path) => path !== filePath) }));
   };
 
   return (
@@ -273,14 +299,14 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
           </tr>
         </thead>
         <tbody>
-          {attendeeRows.map((member, index) => (
-            <tr key={member.id}>
+          {attendeeRows.map((row, index) => (
+            <tr key={row.id}>
               <td>{index + 1}</td>
-              <td>{member.name}</td>
-              <td>{member.knoxId}</td>
-              <td>{member.note ?? ""}</td>
+              <td>{row.name}</td>
+              <td>{row.knoxId}</td>
+              <td>{row.note}</td>
               <td>
-                <button className="btn btn-ghost btn-sm" onClick={() => removeAttendee(member.id)} type="button">
+                <button className="btn btn-ghost btn-sm" onClick={() => removeAttendee(row.id)} type="button">
                   삭제
                 </button>
               </td>
@@ -319,8 +345,9 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
           isFinding={isFindingPlanFile}
           onAutoDetect={handleAutoDetectPlanFile}
           onPick={handlePickPlanFile}
+          onRemove={handleRemovePlanFile}
           onSystemMessage={onSystemMessage}
-          planFile={planFile}
+          planFiles={planFiles}
         />
       </div>
 

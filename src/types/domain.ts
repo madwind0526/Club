@@ -15,6 +15,10 @@ export interface Member {
   grade: MemberGrade;
   role: MemberRole;
   note?: string;
+  // Soft-delete flag: "삭제" no longer erases the record, so a completed activity's attendee
+  // history (attendeeIds) keeps resolving to a real name instead of silently losing the row.
+  // Withdrawn members are hidden from MembersView/roster pickers but still resolvable by id.
+  withdrawn: boolean;
 }
 
 // Member shape sent to the renderer - never carries the password hash.
@@ -43,7 +47,7 @@ export interface Activity {
   title: string;
   date: string;
   weekOfMonth: number;
-  planFilePath?: string;
+  planFilePaths: string[];
   content: string;
   attendeeIds: string[];
   photoFileNames: string[];
@@ -86,8 +90,21 @@ export interface AppSettings {
   clubLogoPath: string;
   clubIntro: string;
   dataRootFolder: string;
+  // Per-category folder overrides - empty means "use <dataRootFolder>/<category>" (unchanged
+  // default behavior). Same input style/semantics as dataRootFolder.
+  photosFolder: string;
+  receiptsFolder: string;
+  expensesFolder: string;
+  planFolder: string;
   memberImportFormat: MemberImportFormat;
   memberImportMode: MemberImportMode;
+  // Empty means "use assets/members.json or assets/members.txt" (unchanged default behavior).
+  memberImportFilePath: string;
+  sponsorshipSingleAttendance: number;
+  sponsorshipMultipleAttendance: number;
+  // Club name used in report titles (e.g. "[26년 7월] {reportClubName} 활동 보고"). Falls back to
+  // clubName when empty.
+  reportClubName: string;
 }
 
 export interface MediaScanResult {

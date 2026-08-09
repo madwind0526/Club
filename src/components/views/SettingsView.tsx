@@ -1,8 +1,21 @@
 import { useState } from "react";
-import { pickFile } from "../../data/mediaStore";
+import { pickFile, pickFolder } from "../../data/mediaStore";
 import { saveSettings } from "../../data/settingsStore";
 import { toDisplayableFileUrl } from "../../utils/fileUrl";
 import type { AppSettings } from "../../types/domain";
+
+type CategoryFolderKey = "photosFolder" | "receiptsFolder" | "expensesFolder" | "planFolder";
+
+// {root}\Photos style default - only used to seed the folder-browse dialog's starting location.
+function joinFolder(root: string, category: string) {
+  if (!root) {
+    return category;
+  }
+
+  const separator = root.includes("\\") ? "\\" : "/";
+
+  return root.endsWith("/") || root.endsWith("\\") ? `${root}${category}` : `${root}${separator}${category}`;
+}
 
 interface SettingsViewProps {
   settings: AppSettings;
@@ -42,11 +55,49 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
   };
 
   const handlePickLogo = async () => {
-    const picked = await pickFile();
+    try {
+      const picked = await pickFile();
 
-    if (picked) {
-      update("clubLogoPath", picked.path);
-      onSystemMessage(`클럽 로고 파일을 선택했습니다: ${picked.name}`);
+      if (picked) {
+        update("clubLogoPath", picked.path);
+        onSystemMessage(`클럽 로고 파일을 선택했습니다: ${picked.name}`);
+      }
+    } catch (error) {
+      onSystemMessage(error instanceof Error ? `파일 선택 실패: ${error.message}` : "파일 선택에 실패했습니다.");
+    }
+  };
+
+  const handlePickMemberImportFile = async () => {
+    try {
+      const picked = await pickFile();
+
+      if (picked) {
+        update("memberImportFilePath", picked.path);
+        onSystemMessage(`회원 자동불러오기 파일을 선택했습니다: ${picked.name}`);
+      }
+    } catch (error) {
+      onSystemMessage(error instanceof Error ? `파일 선택 실패: ${error.message}` : "파일 선택에 실패했습니다.");
+    }
+  };
+
+  // Opens the folder browser starting at {데이터 루트 폴더}\{category} (e.g. D:\Club\Photos) so
+  // the common case is a single confirm click, while still allowing navigation elsewhere.
+  const handlePickCategoryFolder = async (key: CategoryFolderKey, category: string) => {
+    if (!window.clubApp) {
+      onSystemMessage("폴더 선택은 Electron 앱(npm start)에서만 가능합니다. 브라우저에서는 경로를 직접 입력해 주세요.");
+      return;
+    }
+
+    try {
+      const defaultPath = draft[key] || joinFolder(draft.dataRootFolder, category);
+      const picked = await pickFolder(defaultPath);
+
+      if (picked) {
+        update(key, picked.path);
+        onSystemMessage(`${category} 폴더를 선택했습니다: ${picked.path}`);
+      }
+    } catch (error) {
+      onSystemMessage(error instanceof Error ? `폴더 선택 실패: ${error.message}` : "폴더 선택에 실패했습니다.");
     }
   };
 
@@ -150,6 +201,131 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
             placeholder={"예: D:\\Club"}
             value={draft.dataRootFolder}
           />
+        </div>
+
+        <div className="form-row">
+          <div className="form-field">
+            <label htmlFor="settings-photos-folder">Photos 폴더 (비워두면 데이터 루트 폴더/Photos)</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input
+                id="settings-photos-folder"
+                onChange={(event) => update("photosFolder", event.target.value)}
+                placeholder="Photos"
+                style={{ flex: 1 }}
+                value={draft.photosFolder}
+              />
+              <button className="btn btn-sm" onClick={() => handlePickCategoryFolder("photosFolder", "Photos")} type="button">
+                찾아보기
+              </button>
+            </div>
+          </div>
+          <div className="form-field">
+            <label htmlFor="settings-receipts-folder">Receipts 폴더 (비워두면 데이터 루트 폴더/Receipts)</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input
+                id="settings-receipts-folder"
+                onChange={(event) => update("receiptsFolder", event.target.value)}
+                placeholder="Receipts"
+                style={{ flex: 1 }}
+                value={draft.receiptsFolder}
+              />
+              <button
+                className="btn btn-sm"
+                onClick={() => handlePickCategoryFolder("receiptsFolder", "Receipts")}
+                type="button"
+              >
+                찾아보기
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-field">
+            <label htmlFor="settings-expenses-folder">Expenses 폴더 (비워두면 데이터 루트 폴더/Expenses)</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input
+                id="settings-expenses-folder"
+                onChange={(event) => update("expensesFolder", event.target.value)}
+                placeholder="Expenses"
+                style={{ flex: 1 }}
+                value={draft.expensesFolder}
+              />
+              <button
+                className="btn btn-sm"
+                onClick={() => handlePickCategoryFolder("expensesFolder", "Expenses")}
+                type="button"
+              >
+                찾아보기
+              </button>
+            </div>
+          </div>
+          <div className="form-field">
+            <label htmlFor="settings-plan-folder">Plan 폴더 (비워두면 데이터 루트 폴더/Plan)</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input
+                id="settings-plan-folder"
+                onChange={(event) => update("planFolder", event.target.value)}
+                placeholder="Plan"
+                style={{ flex: 1 }}
+                value={draft.planFolder}
+              />
+              <button className="btn btn-sm" onClick={() => handlePickCategoryFolder("planFolder", "Plan")} type="button">
+                찾아보기
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="settings-report-club-name">
+            보고서 클럽 이름 (월간 정리 Excel 제목 "[YY년 M월] 클럽 이름 활동 보고"에 사용, 비워두면 클럽 이름 사용)
+          </label>
+          <input
+            id="settings-report-club-name"
+            onChange={(event) => update("reportClubName", event.target.value)}
+            placeholder="예: SNRC"
+            value={draft.reportClubName}
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-field">
+            <label htmlFor="settings-sponsorship-single">1회 참석 활동비 (원)</label>
+            <input
+              id="settings-sponsorship-single"
+              onChange={(event) => update("sponsorshipSingleAttendance", Number(event.target.value) || 0)}
+              type="number"
+              value={draft.sponsorshipSingleAttendance}
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor="settings-sponsorship-multiple">2회 이상 참석 활동비 (원)</label>
+            <input
+              id="settings-sponsorship-multiple"
+              onChange={(event) => update("sponsorshipMultipleAttendance", Number(event.target.value) || 0)}
+              type="number"
+              value={draft.sponsorshipMultipleAttendance}
+            />
+          </div>
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="settings-member-import-path">
+            회원 자동불러오기 파일 경로 (비워두면 assets\members.json 또는 assets\members.txt)
+          </label>
+          <div style={{ display: "flex", gap: 10 }}>
+            <input
+              id="settings-member-import-path"
+              onChange={(event) => update("memberImportFilePath", event.target.value)}
+              placeholder={"예: assets\\members.txt"}
+              style={{ flex: 1 }}
+              value={draft.memberImportFilePath}
+            />
+            <button className="btn btn-sm" onClick={handlePickMemberImportFile} type="button">
+              찾아보기
+            </button>
+          </div>
         </div>
 
         <div className="form-field">

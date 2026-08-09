@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   addMember,
   downloadMembersJson,
@@ -40,7 +40,22 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
   const [password, setPassword] = useState("");
   const [deleteCandidate, setDeleteCandidate] = useState<PublicMember | null>(null);
   const [isAutoImporting, setIsAutoImporting] = useState(false);
+  const [importPassword, setImportPassword] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // admin 회원이 항상 위쪽에, 그 외에는 이름 오름차순으로 정렬해 표시. 탈퇴(소프트 삭제)한
+  // 회원은 명단에서 제외 - 활동 참석자 기록에서는 여전히 이름이 조회됨.
+  const sortedMembers = useMemo(() => {
+    return members
+      .filter((member) => !member.withdrawn)
+      .sort((a, b) => {
+        if (a.role !== b.role) {
+          return a.role === "admin" ? -1 : 1;
+        }
+
+        return a.name.localeCompare(b.name, "ko");
+      });
+  }, [members]);
 
   const update = <Key extends keyof MemberDraft>(key: Key, value: MemberDraft[Key]) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -115,17 +130,18 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
     }
 
     const beforeCount = members.length;
-    const nextMembers = await importMembers(rows, settings.memberImportMode);
+    const nextMembers = await importMembers(rows, settings.memberImportMode, importPassword.trim());
     const modeLabel = settings.memberImportMode === "replace" ? "교체" : "추가";
     // Knox ID duplicates are silently skipped server-side - diff the counts to report how many.
     const addedCount = settings.memberImportMode === "replace" ? nextMembers.length : nextMembers.length - beforeCount;
     const skippedCount = rows.length - addedCount;
+    const passwordLabel = importPassword.trim() ? "입력한 초기 비밀번호" : "Knox ID";
 
     onMembersChange(nextMembers);
     onSystemMessage(
       skippedCount > 0
-        ? `${sourceLabel}에서 ${addedCount}명을 ${modeLabel}했습니다. (Knox ID 중복 ${skippedCount}명 제외, 초기 비밀번호: Knox ID)`
-        : `${sourceLabel}에서 ${addedCount}명을 불러와 ${modeLabel}했습니다. (초기 비밀번호: Knox ID)`
+        ? `${sourceLabel}에서 ${addedCount}명을 ${modeLabel}했습니다. (Knox ID 중복 ${skippedCount}명 제외, 초기 비밀번호: ${passwordLabel})`
+        : `${sourceLabel}에서 ${addedCount}명을 불러와 ${modeLabel}했습니다. (초기 비밀번호: ${passwordLabel})`
     );
   };
 
@@ -167,6 +183,13 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
         <h1>회원 관리</h1>
         {isAdmin && (
           <div className="form-actions">
+            <input
+              onChange={(event) => setImportPassword(event.target.value)}
+              placeholder="가져오기 초기 비밀번호 (비워두면 Knox ID)"
+              style={{ width: 220 }}
+              type="password"
+              value={importPassword}
+            />
             <button className="btn btn-sm" onClick={() => fileInputRef.current?.click()} type="button">
               불러오기
             </button>
@@ -211,7 +234,7 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
           </tr>
         </thead>
         <tbody>
-          {members.map((member) => (
+          {sortedMembers.map((member) => (
             <tr key={member.id}>
               <td>{member.name}</td>
               <td>{member.knoxId}</td>

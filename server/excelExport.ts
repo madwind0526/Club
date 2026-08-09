@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { resolveAppPath } from "./paths.js";
 
 // Mirrors the shapes in src/types/domain.ts. Duplicated here (rather than imported) so this
 // Node-context module stays fully independent of the renderer's tsconfig/build graph.
@@ -17,7 +18,7 @@ interface Activity {
   title: string;
   date: string;
   weekOfMonth: number;
-  planFilePath?: string;
+  planFilePaths: string[];
   content: string;
   attendeeIds: string[];
   photoFileNames: string[];
@@ -37,6 +38,14 @@ interface Member {
   grade: string;
   role: string;
   note?: string;
+  withdrawn: boolean;
+}
+
+interface ReportSettings {
+  reportClubName?: string;
+  clubName?: string;
+  sponsorshipSingleAttendance?: number;
+  sponsorshipMultipleAttendance?: number;
 }
 
 async function readJsonFile<T>(dataDir: string, name: string, fallback: T): Promise<T> {
@@ -68,14 +77,29 @@ function formatWon(amount: number) {
   return `${amount.toLocaleString()}원`;
 }
 
-// A single attendance in the month earns 50,000; two or more earn 100,000 - matches
-// MonthlyReportDetail.tsx.
-function calculateSponsorship(attendedCount: number) {
+interface SponsorshipConfig {
+  single: number;
+  multiple: number;
+}
+
+// A single attendance in the month earns `single`; two or more earn `multiple` - matches
+// MonthlyReportDetail.tsx. Both amounts come from Settings (sponsorshipSingleAttendance /
+// sponsorshipMultipleAttendance).
+function calculateSponsorship(attendedCount: number, config: SponsorshipConfig) {
   if (attendedCount <= 0) {
     return 0;
   }
 
-  return attendedCount === 1 ? 50000 : 100000;
+  return attendedCount === 1 ? config.single : config.multiple;
+}
+
+// "[26년 7월] SNRC 동호회 활동 보고" - the club name portion is configurable in Settings.
+function buildReportTitle(yyyyMm: string, clubName: string) {
+  const [yearFull, monthStr] = yyyyMm.split("-");
+  const yy = yearFull.slice(2);
+  const month = parseInt(monthStr, 10);
+
+  return `[${yy}년 ${month}월] ${clubName} 활동 보고`;
 }
 
 const TABLE_BORDER: Partial<ExcelJS.Borders> = {
@@ -109,6 +133,20 @@ function setSectionTitle(sheet: ExcelJS.Worksheet, row: number, title: string, s
 
   cell.value = title;
   cell.font = { bold: true, size };
+}
+
+// A "1x2" mini table (label | value) - used for 활동비 합 / 행사 경비 신청·지출 금액 합.
+function write1x2(sheet: ExcelJS.Worksheet, row: number, col: number, label: string, value: string) {
+  const labelCell = sheet.getRow(row).getCell(col);
+
+  labelCell.value = label;
+  labelCell.font = { bold: true };
+  labelCell.border = TABLE_BORDER;
+
+  const valueCell = sheet.getRow(row).getCell(col + 1);
+
+  valueCell.value = value;
+  valueCell.border = TABLE_BORDER;
 }
 
 const IMAGE_EXTENSION_MAP: Record<string, "jpeg" | "png" | "gif"> = {
@@ -154,7 +192,7 @@ async function placeImageGrid(
 
     if (filePath && extension) {
       try {
-        const buffer = await readFile(filePath);
+        const buffer = await readFile(resolveAppPath(filePath));
         const imageId = workbook.addImage({ base64: buffer.toString("base64"), extension });
 
         sheet.addImage(imageId, {
@@ -277,27 +315,62 @@ async function writeMediaSection(
   return row;
 }
 
+// 사진 panel: big title, per-week photo grid, then a fixed confirmation line underneath.
+async function writePhotoPanel(
+  workbook: ExcelJS.Workbook,
+  sheet: ExcelJS.Worksheet,
+  startRow: number,
+  startCol: number,
+  activities: Activity[]
+): Promise<number> {
+  let row = startRow;
+
+  setSectionTitle(sheet, row, "활동 사진", 13, startCol);
+  row += 1;
+
+  row = await writePhotosByWeek(workbook, sheet, row, activities, "photoFileNames", SUMMARY_PANEL_IMAGES_PER_ROW, startCol);
+
+  sheet.getRow(row).getCell(startCol).value = "본인은 동호회 운영진 총무로서 상기 사실 이상없음을 확인하였습니다";
+  row += 2;
+
+  return row;
+}
+
+// `showAllMembers` controls the roster: Summary lists every member (with O marks per week
+// attended), while a week sheet's per-activity panel lists only that activity's attendees.
 function buildAttendanceTable(
   sheet: ExcelJS.Worksheet,
   startRow: number,
-  monthActivities: Activity[],
+  activities: Activity[],
   members: Member[],
-  startCol = 1
-): number {
+  startCol: number,
+  showAllMembers: boolean,
+  sponsorship: SponsorshipConfig
+): { nextRow: number; totalSponsorship: number } {
   const attendanceRows = members
     .map((member) => {
-      const marks = monthActivities.map((activity) => activity.attendeeIds.includes(member.id));
+      const marks = activities.map((activity) => activity.attendeeIds.includes(member.id));
       const attendedCount = marks.filter(Boolean).length;
 
-      return { member, marks, attendedCount, sponsorship: calculateSponsorship(attendedCount) };
+      return { member, marks, attendedCount, sponsorship: calculateSponsorship(attendedCount, sponsorship) };
     })
-    .filter((row) => row.attendedCount > 0)
-    .sort((a, b) => b.attendedCount - a.attendedCount);
+    // showAllMembers (Summary): every active member, plus a withdrawn one only if they actually
+    // attended something in this activity set. Week sheets (showAllMembers=false) already only
+    // ever keep attendedCount > 0 rows, which naturally includes withdrawn attendees too.
+    .filter((row) => (showAllMembers ? !row.member.withdrawn || row.attendedCount > 0 : row.attendedCount > 0))
+    .sort((a, b) => {
+      if (a.member.role !== b.member.role) {
+        return a.member.role === "admin" ? -1 : 1;
+      }
 
-  const weekHeaders = monthActivities.map((activity, index) => `${index + 1}차 (${activity.date.slice(5)})`);
+      return a.member.name.localeCompare(b.member.name, "ko");
+    });
+
+  const weekHeaders = activities.map((activity, index) => `${index + 1}차 (${activity.date.slice(5)})`);
+  const weekStartCol = startCol + 3;
   let row = startRow;
 
-  setHeaderRow(sheet, row, ["번호", "이름", "Knox ID", ...weekHeaders, "합", "후원금액"], startCol);
+  setHeaderRow(sheet, row, ["번호", "이름", "Knox ID", ...weekHeaders, "합", "활동비", "비고"], startCol);
   row += 1;
 
   attendanceRows.forEach((entry, index) => {
@@ -310,88 +383,164 @@ function buildAttendanceTable(
         entry.member.knoxId,
         ...entry.marks.map((attended) => (attended ? "○" : "")),
         entry.attendedCount,
-        formatWon(entry.sponsorship)
+        formatWon(entry.sponsorship),
+        entry.member.withdrawn ? "탈퇴" : ""
       ],
       startCol
     );
+
+    // 1/2/3/4/5주차 출석 표시(○)는 가운데 정렬, 활동비는 오른쪽 정렬.
+    weekHeaders.forEach((_, weekIndex) => {
+      sheet.getRow(row).getCell(weekStartCol + weekIndex).alignment = { horizontal: "center" };
+    });
+    sheet.getRow(row).getCell(weekStartCol + weekHeaders.length + 1).alignment = { horizontal: "right" };
+
     row += 1;
   });
 
-  const totalSponsorship = attendanceRows.reduce((sum, entry) => sum + entry.sponsorship, 0);
+  const attendedRows = attendanceRows.filter((entry) => entry.attendedCount > 0);
+  const totalSponsorship = attendedRows.reduce((sum, entry) => sum + entry.sponsorship, 0);
 
   row += 1;
-  setDataRow(sheet, row, ["총원", attendanceRows.length], startCol);
-  setDataRow(sheet, row + 1, ["총 후원금액", formatWon(totalSponsorship)], startCol);
+  setDataRow(sheet, row, ["총원", `${attendedRows.length}명`], startCol);
+  row += 1;
+  setDataRow(sheet, row, ["총 활동비", formatWon(totalSponsorship)], startCol);
+  row += 1;
 
-  return row + 3;
+  return { nextRow: row + 1, totalSponsorship };
 }
 
-// Summary lays its sections out side-by-side (참석자 | 사진 | 영수증(사진+표) | 경비(사진+표))
-// rather than stacked, so each panel starts at a computed column offset from the previous one.
+// 참여인원 panel: big title, "출석 명단" sub-label, the attendance table, and the "활동비 합"
+// 1x2 total beside the table.
+async function writeAttendancePanel(
+  sheet: ExcelJS.Worksheet,
+  startRow: number,
+  startCol: number,
+  activities: Activity[],
+  members: Member[],
+  showAllMembers: boolean,
+  sponsorship: SponsorshipConfig
+): Promise<number> {
+  let row = startRow;
+
+  setSectionTitle(sheet, row, "활동 인원 보고", 13, startCol);
+  row += 1;
+
+  setSectionTitle(sheet, row, "출석 명단", 12, startCol);
+  row += 1;
+
+  const tableStartRow = row;
+  const { nextRow, totalSponsorship } = buildAttendanceTable(
+    sheet,
+    tableStartRow,
+    activities,
+    members,
+    startCol,
+    showAllMembers,
+    sponsorship
+  );
+  const tableWidth = 6 + activities.length;
+
+  write1x2(sheet, tableStartRow, startCol + tableWidth + PANEL_GAP_COLS, "활동비 합", formatWon(totalSponsorship));
+
+  return nextRow;
+}
+
+// 영수증/경비 panel: big title, sub-label, per-week photo grid, a 1x2 total beside the photos,
+// and the combined line-item table underneath (kept in addition to the total, not replacing it).
+async function writeReceiptLikePanel(
+  workbook: ExcelJS.Workbook,
+  sheet: ExcelJS.Worksheet,
+  startRow: number,
+  startCol: number,
+  activities: Activity[],
+  opts: {
+    bigTitle: string;
+    subLabel: string;
+    sumLabel: string;
+    mediaField: "receiptFileNames" | "expenseFileNames";
+    itemsField: "receipts" | "expenses";
+  }
+): Promise<number> {
+  let row = startRow;
+
+  setSectionTitle(sheet, row, opts.bigTitle, 13, startCol);
+  row += 1;
+
+  setSectionTitle(sheet, row, opts.subLabel, 12, startCol);
+  row += 1;
+
+  const photoStartRow = row;
+
+  row = await writePhotosByWeek(workbook, sheet, row, activities, opts.mediaField, SUMMARY_PANEL_IMAGES_PER_ROW, startCol);
+
+  const total = activities.flatMap((activity) => activity[opts.itemsField]).reduce((sum, item) => sum + item.price, 0);
+
+  write1x2(sheet, photoStartRow, startCol + SUMMARY_PANEL_WIDTH + PANEL_GAP_COLS, opts.sumLabel, formatWon(total));
+
+  return writeCombinedLineItemTable(sheet, row, activities, opts.itemsField, startCol);
+}
+
+const RECEIPT_PANEL_OPTS = {
+  bigTitle: "영수증 첨부",
+  subLabel: "활동결과",
+  sumLabel: "행사 경비 신청 금액 합",
+  mediaField: "receiptFileNames" as const,
+  itemsField: "receipts" as const
+};
+
+const EXPENSE_PANEL_OPTS = {
+  bigTitle: "경비 첨부",
+  subLabel: "활동결과",
+  sumLabel: "행사 경비 지출 금액 합",
+  mediaField: "expenseFileNames" as const,
+  itemsField: "expenses" as const
+};
+
+// Summary lays its sections out side-by-side (사진 | 참여인원(+활동비 합) | 영수증(+금액 합) |
+// 경비(+금액 합)) rather than stacked, so each panel starts at a computed column offset from the
+// previous one's total width (including its 1x2 total table, where it has one).
 async function buildSummarySheet(
   workbook: ExcelJS.Workbook,
   yyyyMm: string,
   monthActivities: Activity[],
-  members: Member[]
+  members: Member[],
+  reportClubName: string,
+  sponsorship: SponsorshipConfig
 ) {
   const sheet = workbook.addWorksheet("Summary");
   const attendedMemberCount = members.filter((member) =>
     monthActivities.some((activity) => activity.attendeeIds.includes(member.id))
   ).length;
 
-  sheet.getCell("A1").value = `${yyyyMm} 월간 정리`;
-  sheet.getCell("A1").font = { bold: true, size: 14 };
+  sheet.getCell("A1").value = buildReportTitle(yyyyMm, reportClubName);
+  sheet.getCell("A1").font = { bold: true, size: 16 };
 
-  // 2x2: 이달의 활동 수 / 참석 인원 - matches the .summary-2x2 card on screen.
-  setHeaderRow(sheet, 3, ["이달의 활동 수", "참석 인원"]);
-  setDataRow(sheet, 4, [`${monthActivities.length}건`, `${attendedMemberCount}명`]);
+  setSectionTitle(sheet, 3, "활동 인원", 13);
+  setHeaderRow(sheet, 4, ["이달의 활동 수", "참석 인원"]);
+  setDataRow(sheet, 5, [`${monthActivities.length}건`, `${attendedMemberCount}명`]);
 
-  const panelRow = 6;
-  const attendanceCol = 1;
-  const attendanceWidth = 3 + monthActivities.length + 2;
+  // 사진 shares column 1 with the 활동 인원 2x2 table above it, so it has to start below that
+  // table. 참여인원/영수증/경비 sit in empty columns to the right of it, so they can start flush
+  // with 활동 인원's own title row instead of waiting for 사진's row.
+  const panelRow = 7;
+  const sideStartRow = 3;
+  const photosCol = 1;
 
-  buildAttendanceTable(sheet, panelRow, monthActivities, members, attendanceCol);
+  await writePhotoPanel(workbook, sheet, panelRow, photosCol, monthActivities);
 
-  const photosCol = attendanceCol + attendanceWidth + PANEL_GAP_COLS;
+  const attendanceCol = photosCol + SUMMARY_PANEL_WIDTH + PANEL_GAP_COLS;
 
-  setSectionTitle(sheet, panelRow, "사진", 12, photosCol);
-  await writePhotosByWeek(
-    workbook,
-    sheet,
-    panelRow + 1,
-    monthActivities,
-    "photoFileNames",
-    SUMMARY_PANEL_IMAGES_PER_ROW,
-    photosCol
-  );
+  await writeAttendancePanel(sheet, sideStartRow, attendanceCol, monthActivities, members, true, sponsorship);
 
-  const receiptsCol = photosCol + SUMMARY_PANEL_WIDTH + PANEL_GAP_COLS;
+  const attendanceWidth = 6 + monthActivities.length;
+  const receiptsCol = attendanceCol + attendanceWidth + PANEL_GAP_COLS + 2 + PANEL_GAP_COLS;
 
-  setSectionTitle(sheet, panelRow, "영수증", 12, receiptsCol);
-  const afterReceiptPhotos = await writePhotosByWeek(
-    workbook,
-    sheet,
-    panelRow + 1,
-    monthActivities,
-    "receiptFileNames",
-    SUMMARY_PANEL_IMAGES_PER_ROW,
-    receiptsCol
-  );
-  writeCombinedLineItemTable(sheet, afterReceiptPhotos, monthActivities, "receipts", receiptsCol);
+  await writeReceiptLikePanel(workbook, sheet, sideStartRow, receiptsCol, monthActivities, RECEIPT_PANEL_OPTS);
 
-  const expensesCol = receiptsCol + SUMMARY_PANEL_WIDTH + PANEL_GAP_COLS;
+  const expensesCol = receiptsCol + SUMMARY_PANEL_WIDTH + PANEL_GAP_COLS + 2 + PANEL_GAP_COLS;
 
-  setSectionTitle(sheet, panelRow, "경비", 12, expensesCol);
-  const afterExpensePhotos = await writePhotosByWeek(
-    workbook,
-    sheet,
-    panelRow + 1,
-    monthActivities,
-    "expenseFileNames",
-    SUMMARY_PANEL_IMAGES_PER_ROW,
-    expensesCol
-  );
-  writeCombinedLineItemTable(sheet, afterExpensePhotos, monthActivities, "expenses", expensesCol);
+  await writeReceiptLikePanel(workbook, sheet, sideStartRow, expensesCol, monthActivities, EXPENSE_PANEL_OPTS);
 
   sheet.getColumn(1).width = 8;
   sheet.getColumn(2).width = 14;
@@ -403,41 +552,48 @@ async function writePlanFileRow(workbook: ExcelJS.Workbook, sheet: ExcelJS.Works
 
   sheet.getCell(`A${row}`).value = "활동 계획서";
 
-  if (!activity.planFilePath) {
+  if (activity.planFilePaths.length === 0) {
     sheet.getCell(`B${row}`).value = "첨부된 파일 없음";
     return row + 2;
   }
 
-  const fileName = activity.planFilePath.split(/[\\/]/).pop() ?? activity.planFilePath;
-  const extension = IMAGE_EXTENSION_MAP[path.extname(activity.planFilePath).toLowerCase()];
-
-  sheet.getCell(`B${row}`).value = fileName;
   row += 1;
 
-  if (extension) {
-    try {
-      const buffer = await readFile(activity.planFilePath);
-      const imageId = workbook.addImage({ base64: buffer.toString("base64"), extension });
+  for (const planFilePath of activity.planFilePaths) {
+    const fileName = planFilePath.split(/[\\/]/).pop() ?? planFilePath;
+    const extension = IMAGE_EXTENSION_MAP[path.extname(planFilePath).toLowerCase()];
 
-      sheet.addImage(imageId, {
-        tl: { col: 0, row },
-        ext: { width: IMAGE_CELL_SIZE, height: IMAGE_CELL_SIZE }
-      });
-      row += IMAGE_ROW_HEIGHT_UNITS;
-    } catch {
-      // Referenced file no longer exists on disk.
+    sheet.getCell(`B${row}`).value = fileName;
+    row += 1;
+
+    if (extension) {
+      try {
+        const buffer = await readFile(resolveAppPath(planFilePath));
+        const imageId = workbook.addImage({ base64: buffer.toString("base64"), extension });
+
+        sheet.addImage(imageId, {
+          tl: { col: 0, row },
+          ext: { width: IMAGE_CELL_SIZE, height: IMAGE_CELL_SIZE }
+        });
+        row += IMAGE_ROW_HEIGHT_UNITS;
+      } catch {
+        // Referenced file no longer exists on disk.
+      }
     }
   }
 
   return row + 1;
 }
 
+// Mirrors Summary's panel layout (사진 | 참여인원 | 영수증 | 경비) per activity, but the
+// 참여인원 panel here lists only that activity's actual attendees (showAllMembers = false).
 async function buildWeekSheet(
   workbook: ExcelJS.Workbook,
   weekNumber: number,
   yyyyMm: string,
   activities: Activity[],
-  members: Member[]
+  members: Member[],
+  sponsorship: SponsorshipConfig
 ) {
   const sheet = workbook.addWorksheet(`${weekNumber}주차`);
   let row = 1;
@@ -460,59 +616,30 @@ async function buildWeekSheet(
     sheet.getCell(`B${row}`).value = `${activity.attendeeIds.length}명`;
     row += 2;
 
-    const attendeeRows = activity.attendeeIds
-      .map((id) => members.find((member) => member.id === id))
-      .filter((member): member is Member => Boolean(member));
+    const panelRow = row;
+    const photosCol = 1;
 
-    setHeaderRow(sheet, row, ["번호", "이름", "Knox ID", "비고"]);
-    row += 1;
+    const afterPhotos = await writePhotoPanel(workbook, sheet, panelRow, photosCol, [activity]);
 
-    attendeeRows.forEach((member, index) => {
-      setDataRow(sheet, row, [index + 1, member.name, member.knoxId, member.note ?? ""]);
-      row += 1;
-    });
+    const attendanceCol = photosCol + SUMMARY_PANEL_WIDTH + PANEL_GAP_COLS;
+    const afterAttendance = await writeAttendancePanel(
+      sheet,
+      panelRow,
+      attendanceCol,
+      [activity],
+      members,
+      false,
+      sponsorship
+    );
 
-    setDataRow(sheet, row, ["총인원", attendeeRows.length]);
-    row += 2;
+    const attendanceWidth = 6 + 1;
+    const receiptsCol = attendanceCol + attendanceWidth + PANEL_GAP_COLS + 2 + PANEL_GAP_COLS;
+    const afterReceipts = await writeReceiptLikePanel(workbook, sheet, panelRow, receiptsCol, [activity], RECEIPT_PANEL_OPTS);
 
-    setSectionTitle(sheet, row, "사진", 12);
-    row += 1;
-    row = await placeImageGrid(workbook, sheet, row, activity.photoFileNames);
-    if (activity.photoFileNames.length === 0) {
-      sheet.getCell(`A${row}`).value = "등록된 사진이 없습니다.";
-      row += 2;
-    }
+    const expensesCol = receiptsCol + SUMMARY_PANEL_WIDTH + PANEL_GAP_COLS + 2 + PANEL_GAP_COLS;
+    const afterExpenses = await writeReceiptLikePanel(workbook, sheet, panelRow, expensesCol, [activity], EXPENSE_PANEL_OPTS);
 
-    setSectionTitle(sheet, row, "영수증", 12);
-    row += 1;
-    row = await placeImageGrid(workbook, sheet, row, activity.receiptFileNames);
-    if (activity.receiptFileNames.length === 0) {
-      sheet.getCell(`A${row}`).value = "등록된 영수증 사진이 없습니다.";
-      row += 1;
-    }
-    setHeaderRow(sheet, row, ["날짜", "구매 내용", "가격", "비고"]);
-    row += 1;
-    activity.receipts.forEach((item) => {
-      setDataRow(sheet, row, [item.date, item.item, formatWon(item.price), item.note ?? ""]);
-      row += 1;
-    });
-    row += 1;
-
-    setSectionTitle(sheet, row, "경비", 12);
-    row += 1;
-    row = await placeImageGrid(workbook, sheet, row, activity.expenseFileNames);
-    if (activity.expenseFileNames.length === 0) {
-      sheet.getCell(`A${row}`).value = "등록된 경비 사진이 없습니다.";
-      row += 1;
-    }
-    setHeaderRow(sheet, row, ["날짜", "구매 내용", "가격", "비고"]);
-    row += 1;
-    activity.expenses.forEach((item) => {
-      setDataRow(sheet, row, [item.date, item.item, formatWon(item.price), item.note ?? ""]);
-      row += 1;
-    });
-
-    row += 3;
+    row = Math.max(afterPhotos, afterAttendance, afterReceipts, afterExpenses) + 1;
   }
 
   sheet.getColumn(1).width = 18;
@@ -543,7 +670,16 @@ function buildMembersSheet(workbook: ExcelJS.Workbook, members: Member[]) {
 
   setHeaderRow(sheet, 1, ["이름", "Knox ID", "부서", "연락처", "가입 날짜", "회원 등급", "역할", "비고"]);
 
-  members.forEach((member, index) => {
+  // admin이 항상 위쪽, 나머지는 이름 오름차순 - MembersView/참석자 표와 동일한 정렬 규칙.
+  const sortedMembers = [...members].sort((a, b) => {
+    if (a.role !== b.role) {
+      return a.role === "admin" ? -1 : 1;
+    }
+
+    return a.name.localeCompare(b.name, "ko");
+  });
+
+  sortedMembers.forEach((member, index) => {
     setDataRow(sheet, index + 2, [
       member.name,
       member.knoxId,
@@ -564,6 +700,13 @@ function buildMembersSheet(workbook: ExcelJS.Workbook, members: Member[]) {
 export async function buildMonthlyReportWorkbook(dataDir: string, yyyyMm: string): Promise<ExcelJS.Workbook> {
   const activities = await readJsonFile<Activity[]>(dataDir, "activities.json", []);
   const members = await readJsonFile<Member[]>(dataDir, "members.json", []);
+  const settings = await readJsonFile<ReportSettings>(dataDir, "app-settings.json", {});
+
+  const sponsorship: SponsorshipConfig = {
+    single: settings.sponsorshipSingleAttendance ?? 5000,
+    multiple: settings.sponsorshipMultipleAttendance ?? 10000
+  };
+  const reportClubName = settings.reportClubName || settings.clubName || "";
 
   const monthActivities = activities
     .filter((activity) => activity.date.startsWith(yyyyMm))
@@ -571,7 +714,7 @@ export async function buildMonthlyReportWorkbook(dataDir: string, yyyyMm: string
 
   const workbook = new ExcelJS.Workbook();
 
-  await buildSummarySheet(workbook, yyyyMm, monthActivities, members);
+  await buildSummarySheet(workbook, yyyyMm, monthActivities, members, reportClubName, sponsorship);
 
   const activitiesByWeek = new Map<number, Activity[]>();
 
@@ -583,13 +726,18 @@ export async function buildMonthlyReportWorkbook(dataDir: string, yyyyMm: string
   });
 
   for (const weekNumber of Array.from(activitiesByWeek.keys()).sort((a, b) => a - b)) {
-    await buildWeekSheet(workbook, weekNumber, yyyyMm, activitiesByWeek.get(weekNumber) ?? [], members);
+    await buildWeekSheet(workbook, weekNumber, yyyyMm, activitiesByWeek.get(weekNumber) ?? [], members, sponsorship);
   }
 
   await buildMediaSheet(workbook, "영수증", monthActivities, "receiptFileNames", "receipts");
   await buildMediaSheet(workbook, "경비", monthActivities, "expenseFileNames", "expenses");
 
-  buildMembersSheet(workbook, members);
+  // 회원 목록 mirrors MembersView's roster (withdrawn members hidden); attendance tables above
+  // still use the full `members` list so a withdrawn attendee's history keeps resolving.
+  buildMembersSheet(
+    workbook,
+    members.filter((member) => !member.withdrawn)
+  );
 
   return workbook;
 }

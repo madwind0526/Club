@@ -1,5 +1,23 @@
 [
   {
+    "id": "activity-1786278412442",
+    "title": "8월 활동 실험",
+    "date": "2026-08-20",
+    "weekOfMonth": 3,
+    "planFilePaths": [],
+    "content": "실험",
+    "attendeeIds": [
+      "member-admin-seed"
+    ],
+    "photoFileNames": [],
+    "receiptFileNames": [],
+    "expenseFileNames": [],
+    "receipts": [],
+    "expenses": [],
+    "createdBy": "member-admin-seed",
+    "createdAt": "2026-08-09T12:26:52.442Z"
+  },
+  {
     "id": "activity-2026-01-10",
     "title": "신년 정기 모임",
     "date": "2026-01-10",
@@ -18,7 +36,8 @@
     "receipts": [],
     "expenses": [],
     "createdBy": "member-admin-seed",
-    "createdAt": "2026-01-03T09:00:00.000Z"
+    "createdAt": "2026-01-03T09:00:00.000Z",
+    "planFilePaths": []
   },
   {
     "id": "activity-2026-03-14",
@@ -39,7 +58,8 @@
     "receipts": [],
     "expenses": [],
     "createdBy": "member-002",
-    "createdAt": "2026-03-05T09:00:00.000Z"
+    "createdAt": "2026-03-05T09:00:00.000Z",
+    "planFilePaths": []
   },
   {
     "id": "activity-2026-05-08",
@@ -77,7 +97,8 @@
       }
     ],
     "createdBy": "member-admin-seed",
-    "createdAt": "2026-05-01T09:00:00.000Z"
+    "createdAt": "2026-05-01T09:00:00.000Z",
+    "planFilePaths": []
   },
   {
     "id": "activity-2026-07-04",
@@ -104,7 +125,8 @@
     ],
     "expenses": [],
     "createdBy": "member-admin-seed",
-    "createdAt": "2026-06-28T09:00:00.000Z"
+    "createdAt": "2026-06-28T09:00:00.000Z",
+    "planFilePaths": []
   },
   {
     "id": "activity-2026-07-11",
@@ -113,19 +135,22 @@
     "weekOfMonth": 2,
     "content": "저녁 시간을 이용해 한강공원에서 함께 러닝했습니다. 반포 코스로 약 5km를 뛰었습니다.",
     "attendeeIds": [
-      "member-003",
-      "member-005"
+      "member-002",
+      "member-1786111480192-5-428",
+      "member-1786111480192-8-158",
+      "member-1786111480192-14-782",
+      "member-1786278258777-17-69"
     ],
     "photoFileNames": [
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek2%5C1d300f6b28ddc84e276c85b681959adf.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek2%5C3cb2fbd2bd10cbc6ca7583dcc53982d8.jpg"
+      "club-media://local/Input%5CPhotos%5C2026-07%5CWeek2%5C1d300f6b28ddc84e276c85b681959adf.jpg",
+      "club-media://local/Input%5CPhotos%5C2026-07%5CWeek2%5C3cb2fbd2bd10cbc6ca7583dcc53982d8.jpg"
     ],
     "receiptFileNames": [
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek2%5Cd1d0dd5dec48992900c2485981cc4941.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek2%5C%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C.png"
+      "club-media://local/Input%5CReceipts%5C2026-07%5CWeek2%5Cd1d0dd5dec48992900c2485981cc4941.jpg",
+      "club-media://local/Input%5CReceipts%5C2026-07%5CWeek2%5C%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C.png"
     ],
     "expenseFileNames": [
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CExpenses%5C2026-07%5CWeek2%5C%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C.png"
+      "club-media://local/Input%5CExpenses%5C2026-07%5CWeek2%5C%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C.png"
     ],
     "receipts": [
       {
@@ -146,7 +171,8 @@
       }
     ],
     "createdBy": "member-003",
-    "createdAt": "2026-07-08T09:00:00.000Z"
+    "createdAt": "2026-07-08T09:00:00.000Z",
+    "planFilePaths": []
   },
   {
     "id": "activity-2026-07-18",
@@ -157,27 +183,25 @@
     "attendeeIds": [
       "member-admin-seed",
       "member-002",
-      "member-003",
-      "member-005",
       "member-006"
     ],
     "photoFileNames": [
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5C12cc56e16a2efc307256301611c3e6f6.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5C431710cd9fa45b9f4f68fc8f6a9211f1.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5C6af0dd154e73264b3e2302e0b86867d1.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5Ccouple-jogging-running-outdoors-park-near-water-young-bearded-man-woman-exercising-together-morning.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5Cf8f2bdb941d41eb0e17257a00778b4dd.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CPhotos%5C2026-07%5CWeek3%5Cgroup-people-working-out-together-outdoors.jpg"
+      "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5C12cc56e16a2efc307256301611c3e6f6.jpg",
+      "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5C431710cd9fa45b9f4f68fc8f6a9211f1.jpg",
+      "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5C6af0dd154e73264b3e2302e0b86867d1.jpg",
+      "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5Ccouple-jogging-running-outdoors-park-near-water-young-bearded-man-woman-exercising-together-morning.jpg",
+      "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5Cf8f2bdb941d41eb0e17257a00778b4dd.jpg",
+      "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5Cgroup-people-working-out-together-outdoors.jpg"
     ],
     "receiptFileNames": [
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek3%5C29c7171a09245a3d3a93602ef5416487.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek3%5Ceed8eaca55ee09ad9e13bf68826e6cf8.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek3%5Cf10f991d29d72301227ca441cf2f8678.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CReceipts%5C2026-07%5CWeek3%5Cf456d7aa7e25c64a484547a02b91a129.jpg"
+      "club-media://local/Input%5CReceipts%5C2026-07%5CWeek3%5C29c7171a09245a3d3a93602ef5416487.jpg",
+      "club-media://local/Input%5CReceipts%5C2026-07%5CWeek3%5Ceed8eaca55ee09ad9e13bf68826e6cf8.jpg",
+      "club-media://local/Input%5CReceipts%5C2026-07%5CWeek3%5Cf10f991d29d72301227ca441cf2f8678.jpg",
+      "club-media://local/Input%5CReceipts%5C2026-07%5CWeek3%5Cf456d7aa7e25c64a484547a02b91a129.jpg"
     ],
     "expenseFileNames": [
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CExpenses%5C2026-07%5CWeek3%5C53f90144867de2879536cdb8f79b4064.jpg",
-      "club-media://local/C%3A%5CClaude%5CClub%5CInput%5CExpenses%5C2026-07%5CWeek3%5C6a779c505d26715902154f30b2951484.jpg"
+      "club-media://local/Input%5CExpenses%5C2026-07%5CWeek3%5C53f90144867de2879536cdb8f79b4064.jpg",
+      "club-media://local/Input%5CExpenses%5C2026-07%5CWeek3%5C6a779c505d26715902154f30b2951484.jpg"
     ],
     "receipts": [
       {
@@ -220,7 +244,9 @@
     ],
     "createdBy": "member-admin-seed",
     "createdAt": "2026-07-10T09:00:00.000Z",
-    "planFilePath": "C:\\Claude\\Club\\Input\\Plan\\2026-07-Week3.jpg"
+    "planFilePaths": [
+      "Input\\Plan\\2026-07-Week3.jpg"
+    ]
   },
   {
     "id": "activity-2026-07-25",
@@ -229,7 +255,9 @@
     "weekOfMonth": 4,
     "content": "무더위를 피해 실내에서 즐기는 보드게임 모임입니다. 강남역 근처 보드게임 카페에서 진행했습니다.",
     "attendeeIds": [
-      "member-007"
+      "member-007",
+      "member-1786111480192-16-983",
+      "member-1786278258778-18-224"
     ],
     "photoFileNames": [],
     "receiptFileNames": [],
@@ -245,7 +273,8 @@
     ],
     "expenses": [],
     "createdBy": "member-007",
-    "createdAt": "2026-07-20T09:00:00.000Z"
+    "createdAt": "2026-07-20T09:00:00.000Z",
+    "planFilePaths": []
   },
   {
     "id": "activity-2026-08-01",
@@ -264,7 +293,8 @@
     "receipts": [],
     "expenses": [],
     "createdBy": "member-003",
-    "createdAt": "2026-07-30T09:00:00.000Z"
+    "createdAt": "2026-07-30T09:00:00.000Z",
+    "planFilePaths": []
   },
   {
     "id": "activity-2026-08-20",
@@ -282,7 +312,8 @@
     "receipts": [],
     "expenses": [],
     "createdBy": "member-admin-seed",
-    "createdAt": "2026-08-06T09:00:00.000Z"
+    "createdAt": "2026-08-06T09:00:00.000Z",
+    "planFilePaths": []
   },
   {
     "id": "activity-2026-09-05",
@@ -297,7 +328,8 @@
     "receipts": [],
     "expenses": [],
     "createdBy": "member-admin-seed",
-    "createdAt": "2026-08-06T09:00:00.000Z"
+    "createdAt": "2026-08-06T09:00:00.000Z",
+    "planFilePaths": []
   },
   {
     "id": "activity-2026-10-17",
@@ -314,7 +346,8 @@
     "receipts": [],
     "expenses": [],
     "createdBy": "member-admin-seed",
-    "createdAt": "2026-08-06T09:00:00.000Z"
+    "createdAt": "2026-08-06T09:00:00.000Z",
+    "planFilePaths": []
   },
   {
     "id": "activity-2026-12-19",
@@ -331,6 +364,7 @@
     "receipts": [],
     "expenses": [],
     "createdBy": "member-admin-seed",
-    "createdAt": "2026-08-06T09:00:00.000Z"
+    "createdAt": "2026-08-06T09:00:00.000Z",
+    "planFilePaths": []
   }
 ]

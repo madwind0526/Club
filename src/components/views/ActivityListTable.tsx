@@ -31,7 +31,10 @@ export function ActivityListTable({ activities, onOpenActivity }: ActivityListTa
         {activities.map((activity) => (
           <tr key={activity.id} onClick={() => onOpenActivity(activity.id)}>
             <td>{activity.date}</td>
-            <td>{activity.title || "제목 없음"}</td>
+            <td>
+              {activity.title || "제목 없음"}
+              <div className="activity-row-meta">{activity.weekOfMonth}주차</div>
+            </td>
             <td>{activity.attendeeIds.length}명</td>
             <td>
               <StatusBadge date={activity.date} />

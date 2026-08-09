@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { exportMonthlyReportExcel } from "../../data/activitiesStore";
-import type { Activity, ExpenseItem, PublicMember, ReceiptItem } from "../../types/domain";
+import type { Activity, AppSettings, ExpenseItem, PublicMember, ReceiptItem } from "../../types/domain";
 
 interface MonthlyReportDetailProps {
   yyyyMm: string;
   activities: Activity[];
   members: PublicMember[];
+  settings: AppSettings;
   onClose: () => void;
   onSystemMessage: (message: string) => void;
 }
@@ -17,13 +18,14 @@ interface AttendanceRow {
   sponsorship: number;
 }
 
-// A single attendance in the month earns 50,000; two or more earn 100,000.
-function calculateSponsorship(attendedCount: number) {
+// A single attendance in the month earns `sponsorshipSingleAttendance`; two or more earn
+// `sponsorshipMultipleAttendance` - both configured in Settings.
+function calculateSponsorship(attendedCount: number, settings: AppSettings) {
   if (attendedCount <= 0) {
     return 0;
   }
 
-  return attendedCount === 1 ? 50000 : 100000;
+  return attendedCount === 1 ? settings.sponsorshipSingleAttendance : settings.sponsorshipMultipleAttendance;
 }
 
 function formatWon(amount: number) {
@@ -82,7 +84,7 @@ function MonthlyLineItemTable({ title, rows }: { title: string; rows: Array<Rece
   );
 }
 
-export function MonthlyReportDetail({ yyyyMm, activities, members, onClose, onSystemMessage }: MonthlyReportDetailProps) {
+export function MonthlyReportDetail({ yyyyMm, activities, members, settings, onClose, onSystemMessage }: MonthlyReportDetailProps) {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -110,20 +112,38 @@ export function MonthlyReportDetail({ yyyyMm, activities, members, onClose, onSy
     [activities, yyyyMm]
   );
 
+  // Everyone active, plus any withdrawn (soft-deleted) member who actually attended something
+  // this month - so a since-deleted member's historical attendance still shows up, without
+  // permanently cluttering every future month's roster with people who never attended it.
+  const relevantMembers = useMemo(() => {
+    const active = members.filter((member) => !member.withdrawn);
+    const withdrawnButAttended = members.filter(
+      (member) => member.withdrawn && monthActivities.some((activity) => activity.attendeeIds.includes(member.id))
+    );
+
+    return [...active, ...withdrawnButAttended];
+  }, [members, monthActivities]);
+
   const attendanceRows = useMemo<AttendanceRow[]>(() => {
-    return members
+    return relevantMembers
       .map((member) => {
         const marks = monthActivities.map((activity) => activity.attendeeIds.includes(member.id));
         const attendedCount = marks.filter(Boolean).length;
 
-        return { member, marks, attendedCount, sponsorship: calculateSponsorship(attendedCount) };
+        return { member, marks, attendedCount, sponsorship: calculateSponsorship(attendedCount, settings) };
       })
-      .filter((row) => row.attendedCount > 0)
-      .sort((a, b) => b.attendedCount - a.attendedCount);
-  }, [members, monthActivities]);
+      .sort((a, b) => {
+        if (a.member.role !== b.member.role) {
+          return a.member.role === "admin" ? -1 : 1;
+        }
 
-  const totalHeadcount = attendanceRows.length;
-  const totalSponsorship = attendanceRows.reduce((sum, row) => sum + row.sponsorship, 0);
+        return a.member.name.localeCompare(b.member.name, "ko");
+      });
+  }, [relevantMembers, monthActivities, settings]);
+
+  const attendedRows = attendanceRows.filter((row) => row.attendedCount > 0);
+  const totalHeadcount = attendedRows.length;
+  const totalSponsorship = attendedRows.reduce((sum, row) => sum + row.sponsorship, 0);
 
   const allReceipts = useMemo(() => monthActivities.flatMap((activity) => activity.receipts), [monthActivities]);
   const allExpenses = useMemo(() => monthActivities.flatMap((activity) => activity.expenses), [monthActivities]);
@@ -172,6 +192,7 @@ export function MonthlyReportDetail({ yyyyMm, activities, members, onClose, onSy
                 ))}
                 <th>합</th>
                 <th>후원금액</th>
+                <th>비고</th>
               </tr>
             </thead>
             <tbody>
@@ -187,6 +208,7 @@ export function MonthlyReportDetail({ yyyyMm, activities, members, onClose, onSy
                   ))}
                   <td>{row.attendedCount}</td>
                   <td>{formatWon(row.sponsorship)}</td>
+                  <td>{row.member.withdrawn ? "탈퇴" : ""}</td>
                 </tr>
               ))}
             </tbody>
@@ -196,6 +218,7 @@ export function MonthlyReportDetail({ yyyyMm, activities, members, onClose, onSy
                   총원 {totalHeadcount}명
                 </td>
                 <td className="data-table-footer">{formatWon(totalSponsorship)}</td>
+                <td className="data-table-footer" />
               </tr>
             </tfoot>
           </table>

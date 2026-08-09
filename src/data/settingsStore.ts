@@ -6,8 +6,16 @@ export const defaultSettings: AppSettings = {
   clubLogoPath: "",
   clubIntro: "동호회 소개를 Settings 화면에서 입력해 주세요.",
   dataRootFolder: "",
+  photosFolder: "",
+  receiptsFolder: "",
+  expensesFolder: "",
+  planFolder: "",
   memberImportFormat: "txt",
-  memberImportMode: "append"
+  memberImportMode: "append",
+  memberImportFilePath: "",
+  sponsorshipSingleAttendance: 5000,
+  sponsorshipMultipleAttendance: 10000,
+  reportClubName: ""
 };
 
 export async function loadSettings(): Promise<AppSettings> {

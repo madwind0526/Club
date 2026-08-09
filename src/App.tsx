@@ -318,6 +318,7 @@ export function App() {
               members={members}
               onClose={() => setMonthlyReportMonth(null)}
               onSystemMessage={setSystemMessage}
+              settings={settings}
               yyyyMm={monthlyReportMonth}
             />
           </div>

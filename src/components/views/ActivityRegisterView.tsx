@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { computeWeekOfMonth, formatYyyyMm } from "../../data/activitiesStore";
-import { findPlanFile, pickFile } from "../../data/mediaStore";
+import { ensureMediaFolders, findPlanFiles, pickFile } from "../../data/mediaStore";
 import { PlanFileControls } from "./PlanFileControls";
 import type { Activity, PublicMember } from "../../types/domain";
 
@@ -16,7 +16,7 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(today);
   const [weekOfMonth, setWeekOfMonth] = useState(computeWeekOfMonth(today));
-  const [planFile, setPlanFile] = useState<{ path: string; name: string } | null>(null);
+  const [planFiles, setPlanFiles] = useState<Array<{ path: string; name: string }>>([]);
   const [content, setContent] = useState("");
   const [isFindingPlanFile, setIsFindingPlanFile] = useState(false);
 
@@ -29,8 +29,8 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
     const picked = await pickFile();
 
     if (picked) {
-      setPlanFile(picked);
-      onSystemMessage(`활동 계획서를 선택했습니다: ${picked.name}`);
+      setPlanFiles((current) => (current.some((file) => file.path === picked.path) ? current : [...current, picked]));
+      onSystemMessage(`활동 계획서를 첨부했습니다: ${picked.name}`);
     }
   };
 
@@ -38,11 +38,14 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
     setIsFindingPlanFile(true);
 
     try {
-      const found = await findPlanFile(formatYyyyMm(date), weekOfMonth);
+      const found = await findPlanFiles(formatYyyyMm(date), weekOfMonth);
 
-      if (found) {
-        setPlanFile(found);
-        onSystemMessage(`계획서 파일을 자동으로 찾았습니다: ${found.name}`);
+      if (found.length > 0) {
+        setPlanFiles((current) => {
+          const existingPaths = new Set(current.map((file) => file.path));
+          return [...current, ...found.filter((file) => !existingPaths.has(file.path))];
+        });
+        onSystemMessage(`계획서 파일 ${found.length}개를 자동으로 찾아 첨부했습니다.`);
       } else {
         onSystemMessage("일치하는 계획서 파일을 찾지 못했습니다. (Plan 폴더와 파일명을 확인해 주세요)");
       }
@@ -51,7 +54,11 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
     }
   };
 
-  const handleSubmit = () => {
+  const handleRemovePlanFile = (path: string) => {
+    setPlanFiles((current) => current.filter((file) => file.path !== path));
+  };
+
+  const handleSubmit = async () => {
     if (!title.trim()) {
       onSystemMessage("제목을 입력해 주세요.");
       return;
@@ -62,7 +69,7 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
       title: title.trim(),
       date,
       weekOfMonth,
-      planFilePath: planFile?.path,
+      planFilePaths: planFiles.map((file) => file.path),
       content,
       attendeeIds: [],
       photoFileNames: [],
@@ -74,6 +81,7 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
       createdAt: new Date().toISOString()
     };
 
+    await ensureMediaFolders(formatYyyyMm(date), weekOfMonth);
     onCreate(activity);
   };
 
@@ -118,8 +126,9 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
             isFinding={isFindingPlanFile}
             onAutoDetect={handleAutoDetectPlanFile}
             onPick={handlePickPlanFile}
+            onRemove={handleRemovePlanFile}
             onSystemMessage={onSystemMessage}
-            planFile={planFile}
+            planFiles={planFiles}
           />
         </div>
 
@@ -129,7 +138,7 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
         </div>
 
         <div className="form-actions">
-          <button className="btn btn-primary" onClick={handleSubmit} type="button">
+          <button className="btn btn-primary" onClick={() => void handleSubmit()} type="button">
             활동등록
           </button>
         </div>

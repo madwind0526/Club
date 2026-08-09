@@ -9,7 +9,8 @@
     "joinDate": "2026-08-06",
     "grade": "회장",
     "role": "admin",
-    "note": "초기 관리자 계정 (Settings에서 회원 정보 수정 권장)"
+    "note": "초기 관리자 계정 (Settings에서 회원 정보 수정 권장)",
+    "withdrawn": false
   },
   {
     "id": "member-002",
@@ -21,43 +22,8 @@
     "joinDate": "2023-03-02",
     "grade": "총무",
     "role": "일반",
-    "note": "동호회 회계 담당"
-  },
-  {
-    "id": "member-003",
-    "name": "이서연",
-    "knoxId": "lee.seoyeon",
-    "passwordHash": "937da787395f8e81db74e87a82991fd5b7422eb4933ee8ca8f184efeecf40d3e",
-    "department": "마케팅팀",
-    "contact": "010-2345-6789",
-    "joinDate": "2023-06-15",
-    "grade": "감사",
-    "role": "일반",
-    "note": ""
-  },
-  {
-    "id": "member-004",
-    "name": "박지훈",
-    "knoxId": "park.jihoon",
-    "passwordHash": "373b37126a2a9e607625110ef37bdd1e1edcc353376b85c635ccd2dbebb80c70",
-    "department": "영업팀",
-    "contact": "010-3456-7890",
-    "joinDate": "2024-01-08",
-    "grade": "정회원",
-    "role": "일반",
-    "note": ""
-  },
-  {
-    "id": "member-005",
-    "name": "최유진",
-    "knoxId": "choi.yujin",
-    "passwordHash": "70fb91dc4215157b1e8d367b41e9bf8c9561fa89531ecd72f743ffa89fad0e6a",
-    "department": "인사팀",
-    "contact": "010-4567-8901",
-    "joinDate": "2024-04-22",
-    "grade": "정회원",
-    "role": "일반",
-    "note": ""
+    "note": "동호회 회계 담당",
+    "withdrawn": false
   },
   {
     "id": "member-006",
@@ -69,7 +35,8 @@
     "joinDate": "2024-09-10",
     "grade": "정회원",
     "role": "일반",
-    "note": "신입 회원"
+    "note": "신입 회원",
+    "withdrawn": false
   },
   {
     "id": "member-007",
@@ -81,7 +48,8 @@
     "joinDate": "2025-02-17",
     "grade": "정회원",
     "role": "일반",
-    "note": ""
+    "note": "",
+    "withdrawn": false
   },
   {
     "name": "오수현",
@@ -93,7 +61,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480191-0-929",
-    "passwordHash": "4e160575d2a2980e327e9a86729e569b79fe7380b054e99cf456379c0715491f"
+    "passwordHash": "4e160575d2a2980e327e9a86729e569b79fe7380b054e99cf456379c0715491f",
+    "withdrawn": false
   },
   {
     "name": "배지호",
@@ -105,7 +74,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-1-981",
-    "passwordHash": "f5cc246bf3baeed118e09145c6f700f4362a549c99dffd9dfe7ebc545c0a52d2"
+    "passwordHash": "f5cc246bf3baeed118e09145c6f700f4362a549c99dffd9dfe7ebc545c0a52d2",
+    "withdrawn": false
   },
   {
     "name": "한소율",
@@ -117,7 +87,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-2-313",
-    "passwordHash": "34fc1a106aad8b5f4464cea31c6dc2d8969610d6648fbf77482fe7eb3a4022ad"
+    "passwordHash": "34fc1a106aad8b5f4464cea31c6dc2d8969610d6648fbf77482fe7eb3a4022ad",
+    "withdrawn": false
   },
   {
     "name": "서준혁",
@@ -129,7 +100,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-3-512",
-    "passwordHash": "c139991d84c768a24f5cf9afdca2f3806ea7262c1211b5a55d580fbc13f30ca2"
+    "passwordHash": "c139991d84c768a24f5cf9afdca2f3806ea7262c1211b5a55d580fbc13f30ca2",
+    "withdrawn": false
   },
   {
     "name": "임가은",
@@ -141,7 +113,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-4-226",
-    "passwordHash": "179b3499b3139a97238098b8361fa1ee53276329fb1de491f354b49af15779e8"
+    "passwordHash": "179b3499b3139a97238098b8361fa1ee53276329fb1de491f354b49af15779e8",
+    "withdrawn": false
   },
   {
     "name": "조은우",
@@ -153,7 +126,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-5-428",
-    "passwordHash": "1b33791019fbd771ac294b6102672a8d542649b6959b109556b0851bf0a5b7f6"
+    "passwordHash": "1b33791019fbd771ac294b6102672a8d542649b6959b109556b0851bf0a5b7f6",
+    "withdrawn": false
   },
   {
     "name": "신유나",
@@ -165,7 +139,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-6-272",
-    "passwordHash": "223ddfb4ad24671bf016c50b63b197fee738ca336cd13d88d48e0dc897517540"
+    "passwordHash": "223ddfb4ad24671bf016c50b63b197fee738ca336cd13d88d48e0dc897517540",
+    "withdrawn": false
   },
   {
     "name": "권도현",
@@ -177,7 +152,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-7-705",
-    "passwordHash": "4db9236f67a092e21f0eb3fa16927a89a84ffc966b2e5e667713840a8e4f1bba"
+    "passwordHash": "4db9236f67a092e21f0eb3fa16927a89a84ffc966b2e5e667713840a8e4f1bba",
+    "withdrawn": false
   },
   {
     "name": "홍서아",
@@ -189,7 +165,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-8-158",
-    "passwordHash": "b7900df643dd567f588bcc2be46c0697cffb4ef87eac41f0e53ba24a3a92f060"
+    "passwordHash": "b7900df643dd567f588bcc2be46c0697cffb4ef87eac41f0e53ba24a3a92f060",
+    "withdrawn": false
   },
   {
     "name": "문지훈",
@@ -201,7 +178,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-9-332",
-    "passwordHash": "464bc3290211dc7135135e14966f832f0e17fb0d1aa3eeaa6ef2e943198db69d"
+    "passwordHash": "464bc3290211dc7135135e14966f832f0e17fb0d1aa3eeaa6ef2e943198db69d",
+    "withdrawn": false
   },
   {
     "name": "백하린",
@@ -213,7 +191,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-10-892",
-    "passwordHash": "0463e17f07803dc4d1293379e744afe64b3e0ba553e06ab7863cc49badd05257"
+    "passwordHash": "0463e17f07803dc4d1293379e744afe64b3e0ba553e06ab7863cc49badd05257",
+    "withdrawn": false
   },
   {
     "name": "황민재",
@@ -225,7 +204,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-11-354",
-    "passwordHash": "4c1fcb1b9b230d29ff58727d5f0de18073ef431aa775dee5139d21a3cc058b29"
+    "passwordHash": "4c1fcb1b9b230d29ff58727d5f0de18073ef431aa775dee5139d21a3cc058b29",
+    "withdrawn": false
   },
   {
     "name": "남지우",
@@ -237,7 +217,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-12-57",
-    "passwordHash": "ee91552888d2da079039a961614494b9ab41ddf90015954ff9202b3232255431"
+    "passwordHash": "ee91552888d2da079039a961614494b9ab41ddf90015954ff9202b3232255431",
+    "withdrawn": false
   },
   {
     "name": "유채원",
@@ -249,7 +230,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-13-448",
-    "passwordHash": "9ee6ecf7bb7294b63de0a9bb14cddb73f8a108c5de5f23a976d1892cc7ad94a9"
+    "passwordHash": "9ee6ecf7bb7294b63de0a9bb14cddb73f8a108c5de5f23a976d1892cc7ad94a9",
+    "withdrawn": false
   },
   {
     "name": "손재영",
@@ -261,7 +243,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-14-782",
-    "passwordHash": "3aa97520d23cf73d939f4d54ee38d5797e53704af275ad81f8d25659ae7558fe"
+    "passwordHash": "3aa97520d23cf73d939f4d54ee38d5797e53704af275ad81f8d25659ae7558fe",
+    "withdrawn": false
   },
   {
     "name": "오하늘",
@@ -273,7 +256,8 @@
     "role": "일반",
     "note": "휴면 회원 검토 필요",
     "id": "member-1786111480192-15-108",
-    "passwordHash": "90376ea2b6a6e74c8f90476907758e7ad05bb5168fae4e4f00cbb1d0b9ad720c"
+    "passwordHash": "90376ea2b6a6e74c8f90476907758e7ad05bb5168fae4e4f00cbb1d0b9ad720c",
+    "withdrawn": false
   },
   {
     "name": "정우진",
@@ -285,7 +269,8 @@
     "role": "일반",
     "note": "",
     "id": "member-1786111480192-16-983",
-    "passwordHash": "66ef2c5e8b95e4ecbac3d4b3b91ff68ab3afb3a41cecca865741aede1c48ee5d"
+    "passwordHash": "66ef2c5e8b95e4ecbac3d4b3b91ff68ab3afb3a41cecca865741aede1c48ee5d",
+    "withdrawn": false
   },
   {
     "name": "김나윤",
@@ -296,8 +281,9 @@
     "grade": "정회원",
     "role": "일반",
     "note": "",
-    "id": "member-1786111480192-17-138",
-    "passwordHash": "522e3e5834149193b3b7d143ecae7daa7f5d7e519c12e2532348bc9b82bbb9bf"
+    "id": "member-1786278258777-17-69",
+    "passwordHash": "522e3e5834149193b3b7d143ecae7daa7f5d7e519c12e2532348bc9b82bbb9bf",
+    "withdrawn": false
   },
   {
     "name": "이태양",
@@ -308,8 +294,9 @@
     "grade": "정회원",
     "role": "일반",
     "note": "",
-    "id": "member-1786111480192-18-517",
-    "passwordHash": "09fbe98a27b4c125ced48e143c7bea5fe5217e595ae47909db09f12cb7b537c5"
+    "id": "member-1786278258778-18-224",
+    "passwordHash": "09fbe98a27b4c125ced48e143c7bea5fe5217e595ae47909db09f12cb7b537c5",
+    "withdrawn": false
   },
   {
     "name": "박세은",
@@ -320,7 +307,8 @@
     "grade": "정회원",
     "role": "일반",
     "note": "신입 회원",
-    "id": "member-1786111480192-19-120",
-    "passwordHash": "715ab1cfe83f50c8d27f240dd8eedf3cf897a980e5ea5194b1f06cefafdf9ff0"
+    "id": "member-1786278258778-19-222",
+    "passwordHash": "715ab1cfe83f50c8d27f240dd8eedf3cf897a980e5ea5194b1f06cefafdf9ff0",
+    "withdrawn": false
   }
 ]

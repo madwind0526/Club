@@ -5,6 +5,15 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { buildMonthlyReportWorkbook } from "./server/excelExport.js";
+import { resolveAppPath, resolveCategoryFolder, resolvePlanFolder } from "./server/paths.js";
+
+type FolderSettings = {
+  dataRootFolder?: string;
+  photosFolder?: string;
+  receiptsFolder?: string;
+  expensesFolder?: string;
+  planFolder?: string;
+};
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]);
 const PLAN_EXTENSIONS = new Set([
@@ -115,7 +124,8 @@ function clubDevApiPlugin() {
             joinDate: new Date().toISOString().slice(0, 10),
             grade: "회장",
             role: "admin",
-            note: "초기 관리자 계정 (Settings에서 회원 정보 수정 권장)"
+            note: "초기 관리자 계정 (Settings에서 회원 정보 수정 권장)",
+            withdrawn: false
           }
         ]);
       }
@@ -145,6 +155,7 @@ function clubDevApiPlugin() {
         const body = JSON.parse((await readRequestBody(request)) || "{}");
         const rows: Array<Record<string, unknown>> = body.rows ?? [];
         const mode: "append" | "replace" = body.mode ?? "append";
+        const initialPassword: string = body.initialPassword ?? "";
         const existing = mode === "replace" ? [] : await readJson<Array<Record<string, unknown>>>("members.json", []);
         // Skip rows whose Knox ID already exists (in the current roster, or earlier in this
         // same batch) - Knox ID is how login and every other lookup identifies a member.
@@ -162,7 +173,8 @@ function clubDevApiPlugin() {
           imported.push({
             ...row,
             id: `member-${Date.now()}-${index}-${Math.round(Math.random() * 1000)}`,
-            passwordHash: hashPassword(knoxId)
+            passwordHash: hashPassword(initialPassword || knoxId),
+            withdrawn: false
           });
         });
 
@@ -176,9 +188,13 @@ function clubDevApiPlugin() {
         const url = new URL(request.url ?? "", "http://127.0.0.1");
         const format = url.searchParams.get("format") === "json" ? "json" : "txt";
         const fileName = format === "json" ? "members.json" : "members.txt";
+        const settings = await readJson<{ memberImportFilePath?: string } | null>("app-settings.json", null);
+        const filePath = settings?.memberImportFilePath
+          ? resolveAppPath(settings.memberImportFilePath)
+          : path.join(process.cwd(), "assets", fileName);
 
         try {
-          const content = await readFile(path.join(process.cwd(), "assets", fileName), "utf8");
+          const content = await readFile(filePath, "utf8");
           sendJson(response, 200, content);
         } catch {
           sendJson(response, 200, null);
@@ -204,7 +220,8 @@ function clubDevApiPlugin() {
           const member = {
             ...rest,
             id: `member-${Date.now()}-${Math.round(Math.random() * 1000)}`,
-            passwordHash: hashPassword(password || rest.knoxId)
+            passwordHash: hashPassword(password || rest.knoxId),
+            withdrawn: false
           };
 
           members.push(member);
@@ -225,9 +242,10 @@ function clubDevApiPlugin() {
         }
 
         if (request.method === "DELETE") {
+          // Soft delete - see the matching comment on electron/main.ts's members:remove handler.
           const url = new URL(request.url ?? "", "http://127.0.0.1");
           const id = url.searchParams.get("id");
-          const nextMembers = members.filter((member) => member.id !== id);
+          const nextMembers = members.map((member) => (member.id === id ? { ...member, withdrawn: true } : member));
 
           await writeJson("members.json", nextMembers);
           return sendJson(response, 200, nextMembers.map(toPublicMember));
@@ -250,6 +268,10 @@ function clubDevApiPlugin() {
 
         if (!found || found.passwordHash !== hashPassword(password ?? "")) {
           return sendJson(response, 200, { ok: false, error: "Knox ID 또는 비밀번호가 올바르지 않습니다." });
+        }
+
+        if (found.withdrawn) {
+          return sendJson(response, 200, { ok: false, error: "탈퇴한 회원입니다." });
         }
 
         sendJson(response, 200, { ok: true, member: toPublicMember(found) });
@@ -313,18 +335,18 @@ function clubDevApiPlugin() {
 
       server.middlewares.use("/api/media-scan", async (request, response) => {
         const url = new URL(request.url ?? "", "http://127.0.0.1");
-        const category = url.searchParams.get("category") ?? "";
+        const category = (url.searchParams.get("category") ?? "") as "Photos" | "Receipts" | "Expenses";
         const yyyyMm = url.searchParams.get("yyyyMm") ?? "";
         const week = url.searchParams.get("week") ?? "1";
-        const settings = await readJson<{ dataRootFolder?: string } | null>("app-settings.json", null);
-        const root = settings?.dataRootFolder;
+        const settings = await readJson<FolderSettings | null>("app-settings.json", null);
+        const categoryRoot = settings ? resolveCategoryFolder(settings, category) : null;
 
-        if (!root) {
+        if (!categoryRoot) {
           return sendJson(response, 200, { folder: "", files: [] });
         }
 
-        const folder = path.join(root, category, yyyyMm, `Week${week}`);
-        const entries = await readdir(folder, { withFileTypes: true }).catch(() => []);
+        const folder = path.join(categoryRoot, yyyyMm, `Week${week}`);
+        const entries = await readdir(resolveAppPath(folder), { withFileTypes: true }).catch(() => []);
         const files = entries
           .filter((entry) => entry.isFile() && IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
           .map((entry) => `/api/media?path=${encodeURIComponent(path.join(folder, entry.name))}`);
@@ -336,17 +358,16 @@ function clubDevApiPlugin() {
         const url = new URL(request.url ?? "", "http://127.0.0.1");
         const yyyyMm = url.searchParams.get("yyyyMm") ?? "";
         const week = url.searchParams.get("week") ?? "1";
-        const settings = await readJson<{ dataRootFolder?: string } | null>("app-settings.json", null);
-        const root = settings?.dataRootFolder;
+        const settings = await readJson<FolderSettings | null>("app-settings.json", null);
+        const folder = settings ? resolvePlanFolder(settings) : null;
 
-        if (!root) {
-          return sendJson(response, 200, null);
+        if (!folder) {
+          return sendJson(response, 200, []);
         }
 
-        const folder = path.join(root, "Plan");
         const prefix = `${yyyyMm}-Week${week}`;
-        const entries = await readdir(folder, { withFileTypes: true }).catch(() => []);
-        const match = entries
+        const entries = await readdir(resolveAppPath(folder), { withFileTypes: true }).catch(() => []);
+        const matches = entries
           .filter(
             (entry) =>
               entry.isFile() &&
@@ -354,9 +375,47 @@ function clubDevApiPlugin() {
               PLAN_EXTENSIONS.has(path.extname(entry.name).toLowerCase())
           )
           .map((entry) => entry.name)
-          .sort()[0];
+          .sort();
 
-        sendJson(response, 200, match ? { path: path.join(folder, match), name: match } : null);
+        sendJson(
+          response,
+          200,
+          matches.map((name) => ({ path: path.join(folder, name), name }))
+        );
+      });
+
+      server.middlewares.use("/api/media-ensure-folders", async (request, response) => {
+        if (request.method !== "POST" || !isTrustedApiRequest(request)) {
+          response.statusCode = 405;
+          response.end();
+          return;
+        }
+
+        const body = JSON.parse((await readRequestBody(request)) || "{}");
+        const yyyyMm = String(body.yyyyMm ?? "");
+        const week = String(body.week ?? "1");
+        const settings = await readJson<FolderSettings | null>("app-settings.json", null);
+
+        if (!settings) {
+          return sendJson(response, 200, { ok: false });
+        }
+
+        const categories: Array<"Photos" | "Receipts" | "Expenses"> = ["Photos", "Receipts", "Expenses"];
+        const targets = categories
+          .map((category) => resolveCategoryFolder(settings, category))
+          .filter((folder): folder is string => Boolean(folder))
+          .map((folder) => path.join(folder, yyyyMm, `Week${week}`));
+        const planFolder = resolvePlanFolder(settings);
+
+        if (planFolder) {
+          targets.push(planFolder);
+        }
+
+        await Promise.all(
+          targets.map((folder) => mkdir(resolveAppPath(folder), { recursive: true }).catch(() => undefined))
+        );
+
+        sendJson(response, 200, { ok: true });
       });
 
       server.middlewares.use("/api/media", async (request, response) => {
@@ -369,13 +428,19 @@ function clubDevApiPlugin() {
           return;
         }
 
-        // This endpoint must only ever serve files under the configured data root -
+        // This endpoint must only ever serve files under one of the configured media roots -
         // otherwise the query param would let any local page read arbitrary files on disk.
-        const settings = await readJson<{ dataRootFolder?: string } | null>("app-settings.json", null);
-        const root = settings?.dataRootFolder ? path.resolve(settings.dataRootFolder) : null;
-        const filePath = path.resolve(requestedPath);
+        const settings = await readJson<FolderSettings | null>("app-settings.json", null);
+        const roots = settings
+          ? (["Photos", "Receipts", "Expenses"] as const)
+              .map((category) => resolveCategoryFolder(settings, category))
+              .filter((folder): folder is string => Boolean(folder))
+              .map((folder) => resolveAppPath(folder))
+          : [];
+        const filePath = resolveAppPath(requestedPath);
+        const isWithinAnyRoot = roots.some((root) => filePath === root || filePath.startsWith(root + path.sep));
 
-        if (!root || (filePath !== root && !filePath.startsWith(root + path.sep))) {
+        if (!isWithinAnyRoot) {
           response.statusCode = 403;
           response.end();
           return;

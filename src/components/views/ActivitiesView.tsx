@@ -45,7 +45,10 @@ export function ActivitiesView({ activities, viewMode, query, onOpenActivity }: 
                   No Photo
                 </div>
               )}
-              <div className="photo-tile-caption">{activity.title || "제목 없음"}</div>
+              <div className="photo-tile-caption">
+                <div>{activity.title || "제목 없음"}</div>
+                <div style={{ opacity: 0.8, fontSize: "0.72rem", marginTop: 2 }}>{activity.weekOfMonth}주차</div>
+              </div>
             </div>
           ))}
         </div>
@@ -58,6 +61,7 @@ export function ActivitiesView({ activities, viewMode, query, onOpenActivity }: 
                 <StatusBadge date={activity.date} />
               </div>
               <h3>{activity.title || "제목 없음"}</h3>
+              <span className="activity-row-meta">{activity.weekOfMonth}주차</span>
               <p>{activity.content || "내용 없음"}</p>
               <span className="activity-row-meta">참석자 {activity.attendeeIds.length}명</span>
             </div>

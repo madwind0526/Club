@@ -36,7 +36,11 @@ export async function addMember(draft: MemberDraft, password: string): Promise<P
   return response.json();
 }
 
-export async function updateMember(member: PublicMember & { newPassword?: string }): Promise<PublicMember[]> {
+// withdrawn isn't editable through this form - it's only ever changed by removeMember() (soft
+// delete) - so it's excluded here rather than requiring every call site to carry it along.
+export async function updateMember(
+  member: Omit<PublicMember, "withdrawn"> & { newPassword?: string }
+): Promise<PublicMember[]> {
   if (window.clubApp?.updateMember) {
     return window.clubApp.updateMember(member);
   }
@@ -59,20 +63,22 @@ export async function removeMember(id: string): Promise<PublicMember[]> {
   return response.json();
 }
 
-// Newly imported members get their Knox ID as the initial password (they can change it later).
-// mode "replace" discards the existing member list before adding the imported rows.
+// Newly imported members get `initialPassword` (applies to every row, admin included) when set,
+// otherwise each row's own Knox ID as the initial password (they can change it later). Mode
+// "replace" discards the existing member list before adding the imported rows.
 export async function importMembers(
   rows: MemberDraft[],
-  mode: "append" | "replace" = "append"
+  mode: "append" | "replace" = "append",
+  initialPassword = ""
 ): Promise<PublicMember[]> {
   if (window.clubApp?.importMembers) {
-    return window.clubApp.importMembers(rows, mode);
+    return window.clubApp.importMembers(rows, mode, initialPassword);
   }
 
   const response = await fetch("/api/members/import", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ rows, mode })
+    body: JSON.stringify({ rows, mode, initialPassword })
   });
 
   return response.json();
