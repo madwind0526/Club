@@ -41,6 +41,7 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
   const [deleteCandidate, setDeleteCandidate] = useState<PublicMember | null>(null);
   const [isAutoImporting, setIsAutoImporting] = useState(false);
   const [importPassword, setImportPassword] = useState("");
+  const [pendingImport, setPendingImport] = useState<{ rows: MemberDraft[]; sourceLabel: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // admin 회원이 항상 위쪽에, 그 외에는 이름 오름차순으로 정렬해 표시. 탈퇴(소프트 삭제)한
@@ -123,12 +124,7 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
     onSystemMessage(`회원 목록을 ${settings.memberImportFormat.toUpperCase()}로 내보냈습니다.`);
   };
 
-  const applyImportedRows = async (rows: MemberDraft[], sourceLabel: string) => {
-    if (rows.length === 0) {
-      onSystemMessage(`불러올 회원 데이터가 없습니다. (${sourceLabel} 형식을 확인해 주세요)`);
-      return;
-    }
-
+  const runImport = async (rows: MemberDraft[], sourceLabel: string) => {
     const beforeCount = members.length;
     const nextMembers = await importMembers(rows, settings.memberImportMode, importPassword.trim());
     const modeLabel = settings.memberImportMode === "replace" ? "교체" : "추가";
@@ -143,6 +139,33 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
         ? `${sourceLabel}에서 ${addedCount}명을 ${modeLabel}했습니다. (Knox ID 중복 ${skippedCount}명 제외, 초기 비밀번호: ${passwordLabel})`
         : `${sourceLabel}에서 ${addedCount}명을 불러와 ${modeLabel}했습니다. (초기 비밀번호: ${passwordLabel})`
     );
+  };
+
+  const applyImportedRows = async (rows: MemberDraft[], sourceLabel: string) => {
+    if (rows.length === 0) {
+      onSystemMessage(`불러올 회원 데이터가 없습니다. (${sourceLabel} 형식을 확인해 주세요)`);
+      return;
+    }
+
+    // 교체 모드는 기존 회원을 전부 지우고 새로 만들기 때문에 전체 회원의 비밀번호가
+    // 초기화된다 - 되돌릴 수 없는 작업이므로 실행 전에 반드시 확인을 받는다.
+    if (settings.memberImportMode === "replace") {
+      setPendingImport({ rows, sourceLabel });
+      return;
+    }
+
+    await runImport(rows, sourceLabel);
+  };
+
+  const confirmPendingImport = async () => {
+    if (!pendingImport) {
+      return;
+    }
+
+    const { rows, sourceLabel } = pendingImport;
+
+    setPendingImport(null);
+    await runImport(rows, sourceLabel);
   };
 
   // Manual file picker - the selected file is parsed according to the format currently
@@ -347,6 +370,26 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
               </button>
               <button className="btn btn-danger" onClick={handleDelete} type="button">
                 삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingImport && (
+        <div className="modal-overlay" onClick={() => setPendingImport(null)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()} style={{ width: 420 }}>
+            <p>
+              "교체" 방식으로 불러오면 기존 회원이 모두 지워지고 {pendingImport.rows.length}명으로 새로 만들어져{" "}
+              <strong>전체 회원의 비밀번호가 초기화</strong>됩니다 (
+              {importPassword.trim() ? "입력한 초기 비밀번호" : "각자 Knox ID"}로 설정됨). 계속하시겠습니까?
+            </p>
+            <div className="form-actions">
+              <button className="btn" onClick={() => setPendingImport(null)} type="button">
+                취소
+              </button>
+              <button className="btn btn-danger" onClick={confirmPendingImport} type="button">
+                계속
               </button>
             </div>
           </div>

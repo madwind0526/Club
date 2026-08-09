@@ -9,7 +9,7 @@
   "expensesFolder": "",
   "planFolder": "",
   "memberImportFormat": "txt",
-  "memberImportMode": "append",
+  "memberImportMode": "replace",
   "memberImportFilePath": "assets\\members.txt",
   "sponsorshipSingleAttendance": 5000,
   "sponsorshipMultipleAttendance": 10000,
