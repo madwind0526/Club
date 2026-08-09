@@ -108,8 +108,7 @@
     "content": "7월 정기 모임입니다. 상반기 활동을 되돌아보고 하반기 활동 계획을 논의했습니다.",
     "attendeeIds": [
       "member-admin-seed",
-      "member-002",
-      "member-004"
+      "member-002"
     ],
     "photoFileNames": [],
     "receiptFileNames": [],
@@ -187,17 +186,12 @@
     ],
     "photoFileNames": [
       "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5C12cc56e16a2efc307256301611c3e6f6.jpg",
-      "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5C431710cd9fa45b9f4f68fc8f6a9211f1.jpg",
-      "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5C6af0dd154e73264b3e2302e0b86867d1.jpg",
-      "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5Ccouple-jogging-running-outdoors-park-near-water-young-bearded-man-woman-exercising-together-morning.jpg",
       "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5Cf8f2bdb941d41eb0e17257a00778b4dd.jpg",
       "club-media://local/Input%5CPhotos%5C2026-07%5CWeek3%5Cgroup-people-working-out-together-outdoors.jpg"
     ],
     "receiptFileNames": [
       "club-media://local/Input%5CReceipts%5C2026-07%5CWeek3%5C29c7171a09245a3d3a93602ef5416487.jpg",
-      "club-media://local/Input%5CReceipts%5C2026-07%5CWeek3%5Ceed8eaca55ee09ad9e13bf68826e6cf8.jpg",
-      "club-media://local/Input%5CReceipts%5C2026-07%5CWeek3%5Cf10f991d29d72301227ca441cf2f8678.jpg",
-      "club-media://local/Input%5CReceipts%5C2026-07%5CWeek3%5Cf456d7aa7e25c64a484547a02b91a129.jpg"
+      "club-media://local/Input%5CReceipts%5C2026-07%5CWeek3%5Ceed8eaca55ee09ad9e13bf68826e6cf8.jpg"
     ],
     "expenseFileNames": [
       "club-media://local/Input%5CExpenses%5C2026-07%5CWeek3%5C53f90144867de2879536cdb8f79b4064.jpg",
