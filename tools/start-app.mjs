@@ -17,7 +17,7 @@ if (build.status !== 0) {
 }
 
 console.log("Starting Vite dev server...");
-const vite = spawn("npx", ["vite", "--host", "127.0.0.1"], {
+const vite = spawn("npx", ["vite", "--host", "0.0.0.0"], {
   stdio: "inherit",
   shell: true,
   cwd: projectRoot,

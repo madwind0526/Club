@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { formatYyMm } from "../../data/activitiesStore";
+import { toDisplayableFileUrl } from "../../utils/fileUrl";
 import { ActivityListTable, StatusBadge } from "./ActivityListTable";
 import type { Activity } from "../../types/domain";
 import type { ActivitiesViewMode } from "../../App";
@@ -39,7 +40,7 @@ export function ActivitiesView({ activities, viewMode, query, onOpenActivity }: 
           {filteredActivities.map((activity) => (
             <div className="photo-tile" key={activity.id} onClick={() => onOpenActivity(activity.id)}>
               {activity.photoFileNames[0] ? (
-                <img alt={activity.title} src={activity.photoFileNames[0]} />
+                <img alt={activity.title} src={toDisplayableFileUrl(activity.photoFileNames[0])} />
               ) : (
                 <div className="club-logo-placeholder" style={{ width: "100%", height: "100%", display: "grid" }}>
                   No Photo

@@ -13,6 +13,7 @@ type FolderSettings = {
   receiptsFolder?: string;
   expensesFolder?: string;
   planFolder?: string;
+  clubLogoPath?: string;
 };
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]);
@@ -35,7 +36,8 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
   ".png": "image/png",
   ".gif": "image/gif",
   ".webp": "image/webp",
-  ".bmp": "image/bmp"
+  ".bmp": "image/bmp",
+  ".pdf": "application/pdf"
 };
 
 // These dev-only /api/* routes only ever expect requests from this app's own dev-server
@@ -428,19 +430,22 @@ function clubDevApiPlugin() {
           return;
         }
 
-        // This endpoint must only ever serve files under one of the configured media roots -
-        // otherwise the query param would let any local page read arbitrary files on disk.
+        // This endpoint must only ever serve files under one of the configured media roots (or
+        // the club logo itself) - otherwise the query param would let any local page read
+        // arbitrary files on disk.
         const settings = await readJson<FolderSettings | null>("app-settings.json", null);
         const roots = settings
           ? (["Photos", "Receipts", "Expenses"] as const)
               .map((category) => resolveCategoryFolder(settings, category))
+              .concat(resolvePlanFolder(settings))
               .filter((folder): folder is string => Boolean(folder))
               .map((folder) => resolveAppPath(folder))
           : [];
         const filePath = resolveAppPath(requestedPath);
         const isWithinAnyRoot = roots.some((root) => filePath === root || filePath.startsWith(root + path.sep));
+        const isLogoFile = Boolean(settings?.clubLogoPath) && filePath === resolveAppPath(settings!.clubLogoPath!);
 
-        if (!isWithinAnyRoot) {
+        if (!isWithinAnyRoot && !isLogoFile) {
           response.statusCode = 403;
           response.end();
           return;

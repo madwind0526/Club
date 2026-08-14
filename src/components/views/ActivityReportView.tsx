@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { formatYyMm, formatYyyyMm } from "../../data/activitiesStore";
 import { findPlanFiles, pickFile, scanMediaFolder } from "../../data/mediaStore";
+import { toDisplayableFileUrl } from "../../utils/fileUrl";
 import { PlanFileControls } from "./PlanFileControls";
 import type { Activity, ExpenseItem, PublicMember, ReceiptItem } from "../../types/domain";
 
@@ -113,7 +114,7 @@ function MediaSection({
         <div className="thumbnail-grid">
           {files.map((url) => (
             <div className="thumbnail-item" key={url}>
-              <img alt="" className="thumbnail" onClick={() => onPreview(url)} src={url} />
+              <img alt="" className="thumbnail" onClick={() => onPreview(url)} src={toDisplayableFileUrl(url)} />
               <button className="thumbnail-delete" onClick={() => onRemove(url)} title="삭제" type="button">
                 ×
               </button>
@@ -397,7 +398,7 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
 
       {previewImageUrl && (
         <div className="image-preview-overlay" onClick={() => setPreviewImageUrl(null)}>
-          <img alt="" className="image-preview-content" src={previewImageUrl} />
+          <img alt="" className="image-preview-content" src={toDisplayableFileUrl(previewImageUrl)} />
         </div>
       )}
     </div>

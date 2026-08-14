@@ -5,10 +5,10 @@
   "description": "Desktop app for managing club membership, activities, and the club board.",
   "main": "dist-electron/electron/main.js",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite --host 0.0.0.0",
     "start": "node tools/start-app.mjs",
     "build": "tsc -b && vite build && tsc -p tsconfig.node.json",
-    "preview": "vite preview --host 127.0.0.1",
+    "preview": "vite preview --host 0.0.0.0",
     "electron:build": "tsc -p tsconfig.node.json"
   },
   "dependencies": {

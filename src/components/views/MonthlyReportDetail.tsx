@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { exportMonthlyReportExcel } from "../../data/activitiesStore";
+import { toDisplayableFileUrl } from "../../utils/fileUrl";
 import type { Activity, AppSettings, ExpenseItem, PublicMember, ReceiptItem } from "../../types/domain";
 
 interface MonthlyReportDetailProps {
@@ -243,7 +244,13 @@ export function MonthlyReportDetail({ yyyyMm, activities, members, settings, onC
                       </div>
                       <div className="thumbnail-grid">
                         {files.map((url) => (
-                          <img alt="" className="thumbnail" key={url} onClick={() => setPreviewImageUrl(url)} src={url} />
+                          <img
+                            alt=""
+                            className="thumbnail"
+                            key={url}
+                            onClick={() => setPreviewImageUrl(url)}
+                            src={toDisplayableFileUrl(url)}
+                          />
                         ))}
                       </div>
                     </div>
@@ -260,7 +267,7 @@ export function MonthlyReportDetail({ yyyyMm, activities, members, settings, onC
 
       {previewImageUrl && (
         <div className="image-preview-overlay" onClick={() => setPreviewImageUrl(null)}>
-          <img alt="" className="image-preview-content" src={previewImageUrl} />
+          <img alt="" className="image-preview-content" src={toDisplayableFileUrl(previewImageUrl)} />
         </div>
       )}
     </div>
