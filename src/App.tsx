@@ -185,6 +185,13 @@ export function App() {
     setQuickViewActivityId(null);
   };
 
+  const handleDeleteActivity = (activityId: string) => {
+    const activity = activities.find((current) => current.id === activityId);
+
+    void applyActivities(activities.filter((current) => current.id !== activityId));
+    setSystemMessage(activity ? `"${activity.title || "제목 없음"}" 활동을 삭제했습니다.` : "활동을 삭제했습니다.");
+  };
+
   if (!session) {
     return <LoginView clubName={settings.clubName} onLoginSuccess={handleLoginSuccess} theme={settings.theme} />;
   }
@@ -218,6 +225,7 @@ export function App() {
         {view === "activities" && (
           <ActivitiesView
             activities={activities}
+            onDeleteActivity={session.role === "admin" ? handleDeleteActivity : undefined}
             onOpenActivity={openActivityPopup}
             query={query}
             viewMode={activitiesViewMode}
@@ -258,7 +266,7 @@ export function App() {
         )}
 
         {view === "weekly-report" && session.role === "admin" && (
-          <WeeklyReportView activities={activities} onOpenActivity={openReportFor} />
+          <WeeklyReportView activities={activities} onDeleteActivity={handleDeleteActivity} onOpenActivity={openReportFor} />
         )}
         {view === "monthly-report" && (
           <MonthlyReportView activities={activities} onOpenMonth={setMonthlyReportMonth} />

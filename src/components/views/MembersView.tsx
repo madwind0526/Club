@@ -177,10 +177,12 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
     await applyImportedRows(rows, file.name);
   };
 
-  // Reads assets/members.json or assets/members.txt directly, no file dialog.
+  // Reads Settings' memberImportFilePath if set, otherwise assets\members.json or
+  // assets\members.txt, no file dialog.
   const handleAutoImport = async () => {
     const format = settings.memberImportFormat;
     const fileName = format === "json" ? "members.json" : "members.txt";
+    const sourceLabel = settings.memberImportFilePath || `assets\\${fileName}`;
 
     setIsAutoImporting(true);
 
@@ -188,13 +190,13 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
       const text = await readAssetsMembersFile(format);
 
       if (!text) {
-        onSystemMessage(`assets/${fileName} 파일을 찾을 수 없습니다.`);
+        onSystemMessage(`${sourceLabel} 파일을 찾을 수 없습니다.`);
         return;
       }
 
       const rows = format === "json" ? parseMembersJson(text) : parseMembersText(text);
 
-      await applyImportedRows(rows, `assets/${fileName}`);
+      await applyImportedRows(rows, sourceLabel);
     } finally {
       setIsAutoImporting(false);
     }

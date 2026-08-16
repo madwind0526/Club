@@ -329,7 +329,7 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
         </div>
 
         <div className="form-field">
-          <label>회원 불러오기 파일 형식 (assets/members.json 또는 assets/members.txt)</label>
+          <label>회원 불러오기 파일 형식 (assets\members.json 또는 assets\members.txt)</label>
           <div className="segmented-control">
             <button
               className={draft.memberImportFormat === "txt" ? "segmented-option active" : "segmented-option"}

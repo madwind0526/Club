@@ -382,6 +382,25 @@ a {
   font-size: 0.78rem;
 }
 
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 /* ---------- Cards / grids ---------- */
 
 .card {
@@ -851,9 +870,16 @@ a {
 }
 
 .activity-card {
+  position: relative;
   display: grid;
   gap: 8px;
   cursor: pointer;
+}
+
+.activity-card-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
 }
 
 .activity-card-badges {

@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { formatYyMm } from "../../data/activitiesStore";
 import { toDisplayableFileUrl } from "../../utils/fileUrl";
 import { ActivityListTable, StatusBadge } from "./ActivityListTable";
@@ -10,9 +11,21 @@ interface ActivitiesViewProps {
   viewMode: ActivitiesViewMode;
   query: string;
   onOpenActivity: (activityId: string) => void;
+  // Omitted entirely (not just disabled) for non-admin viewers - delete controls only render
+  // when this is provided.
+  onDeleteActivity?: (activityId: string) => void;
 }
 
-export function ActivitiesView({ activities, viewMode, query, onOpenActivity }: ActivitiesViewProps) {
+export function ActivitiesView({ activities, viewMode, query, onOpenActivity, onDeleteActivity }: ActivitiesViewProps) {
+  const [deleteCandidate, setDeleteCandidate] = useState<Activity | null>(null);
+
+  const handleConfirmDelete = () => {
+    if (deleteCandidate) {
+      onDeleteActivity?.(deleteCandidate.id);
+      setDeleteCandidate(null);
+    }
+  };
+
   const filteredActivities = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const sorted = [...activities].sort((a, b) => b.date.localeCompare(a.date));
@@ -57,6 +70,19 @@ export function ActivitiesView({ activities, viewMode, query, onOpenActivity }: 
         <div className="card-grid">
           {filteredActivities.map((activity) => (
             <div className="card activity-card" key={activity.id} onClick={() => onOpenActivity(activity.id)}>
+              {onDeleteActivity && (
+                <button
+                  className="icon-btn activity-card-delete"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDeleteCandidate(activity);
+                  }}
+                  title="활동 삭제"
+                  type="button"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
               <div className="activity-card-badges">
                 <span className="date-badge">{formatYyMm(activity.date)}</span>
                 <StatusBadge date={activity.date} />
@@ -69,7 +95,23 @@ export function ActivitiesView({ activities, viewMode, query, onOpenActivity }: 
           ))}
         </div>
       ) : (
-        <ActivityListTable activities={filteredActivities} onOpenActivity={onOpenActivity} />
+        <ActivityListTable activities={filteredActivities} onDelete={onDeleteActivity} onOpenActivity={onOpenActivity} />
+      )}
+
+      {deleteCandidate && (
+        <div className="modal-overlay" onClick={() => setDeleteCandidate(null)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()} style={{ width: 360 }}>
+            <p>"{deleteCandidate.title || "제목 없음"}" 활동을 삭제하시겠습니까?</p>
+            <div className="form-actions">
+              <button className="btn" onClick={() => setDeleteCandidate(null)} type="button">
+                취소
+              </button>
+              <button className="btn btn-danger" onClick={handleConfirmDelete} type="button">
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

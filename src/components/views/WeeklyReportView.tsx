@@ -5,9 +5,10 @@ import type { Activity } from "../../types/domain";
 interface WeeklyReportViewProps {
   activities: Activity[];
   onOpenActivity: (activityId: string) => void;
+  onDeleteActivity?: (activityId: string) => void;
 }
 
-export function WeeklyReportView({ activities, onOpenActivity }: WeeklyReportViewProps) {
+export function WeeklyReportView({ activities, onOpenActivity, onDeleteActivity }: WeeklyReportViewProps) {
   const sortedActivities = useMemo(() => [...activities].sort((a, b) => b.date.localeCompare(a.date)), [activities]);
 
   return (
@@ -20,7 +21,7 @@ export function WeeklyReportView({ activities, onOpenActivity }: WeeklyReportVie
       {sortedActivities.length === 0 ? (
         <p className="empty-state">등록된 활동이 없습니다.</p>
       ) : (
-        <ActivityListTable activities={sortedActivities} onOpenActivity={onOpenActivity} />
+        <ActivityListTable activities={sortedActivities} onDelete={onDeleteActivity} onOpenActivity={onOpenActivity} />
       )}
     </div>
   );

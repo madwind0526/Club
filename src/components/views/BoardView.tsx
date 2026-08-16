@@ -26,8 +26,23 @@ export function BoardView({ posts, members, currentMember, onSave, onSystemMessa
   const [composePinned, setComposePinned] = useState(false);
   const [commentDraft, setCommentDraft] = useState("");
   const [replyTarget, setReplyTarget] = useState<string | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<BoardPost | null>(null);
 
   const getAuthorName = (id: string) => members.find((member) => member.id === id)?.name ?? "알 수 없음";
+
+  // admin은 모든 글을, 작성자 본인은 자기 글만 삭제할 수 있다.
+  const canDeletePost = (post: BoardPost) => isAdmin(currentMember) || post.authorId === currentMember.id;
+
+  const handleDeletePost = () => {
+    if (!deleteCandidate) {
+      return;
+    }
+
+    onSave(posts.filter((post) => post.id !== deleteCandidate.id));
+    onSystemMessage(`"${deleteCandidate.title}" 게시글을 삭제했습니다.`);
+    setDeleteCandidate(null);
+    setSelectedPostId(null);
+  };
 
   const visiblePosts = useMemo(() => {
     const filtered = activeCategory === "전체" ? posts : posts.filter((post) => post.category === activeCategory);
@@ -203,11 +218,18 @@ export function BoardView({ posts, members, currentMember, onSave, onSystemMessa
                   {getAuthorName(selectedPost.authorId)} · {formatDateTime(selectedPost.createdAt)}
                 </span>
               </div>
-              {selectedPost.category === "공지" && isAdmin(currentMember) && (
-                <button className="btn btn-sm" onClick={() => togglePin(selectedPost.id)} type="button">
-                  {selectedPost.pinned ? "고정 해제" : "상단 고정"}
-                </button>
-              )}
+              <div className="form-actions">
+                {selectedPost.category === "공지" && isAdmin(currentMember) && (
+                  <button className="btn btn-sm" onClick={() => togglePin(selectedPost.id)} type="button">
+                    {selectedPost.pinned ? "고정 해제" : "상단 고정"}
+                  </button>
+                )}
+                {canDeletePost(selectedPost) && (
+                  <button className="btn btn-danger btn-sm" onClick={() => setDeleteCandidate(selectedPost)} type="button">
+                    삭제
+                  </button>
+                )}
+              </div>
             </div>
 
             <p style={{ whiteSpace: "pre-wrap" }}>{selectedPost.content}</p>
@@ -244,6 +266,22 @@ export function BoardView({ posts, members, currentMember, onSave, onSystemMessa
                   댓글 등록
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteCandidate && (
+        <div className="modal-overlay" onClick={() => setDeleteCandidate(null)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()} style={{ width: 360 }}>
+            <p>"{deleteCandidate.title}" 게시글을 삭제하시겠습니까?</p>
+            <div className="form-actions">
+              <button className="btn" onClick={() => setDeleteCandidate(null)} type="button">
+                취소
+              </button>
+              <button className="btn btn-danger" onClick={handleDeletePost} type="button">
+                삭제
+              </button>
             </div>
           </div>
         </div>
