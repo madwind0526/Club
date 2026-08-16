@@ -74,6 +74,15 @@ npm start        # Electron 앱 실행 (권장)
 npm run dev       # http://127.0.0.1:5173
 ```
 
+### Windows에서 `start.bat` / `stop.bat`
+
+Windows에서는 탐색기에서 더블클릭으로 실행할 수 있는 `start.bat`/`stop.bat`도 제공됩니다.
+
+- **`start.bat`**: 포트 5173에 이미 떠 있는 서버가 있으면(다른 프로젝트의 dev 서버가 남아있는 경우 포함) 먼저 종료한 뒤 `npm start`로 앱을 실행합니다.
+- **`stop.bat`**: 포트 5173에 떠 있는 서버와 "Club Management" 창을 모두 종료합니다.
+
+앱이 이미 실행 중인 상태에서 `start.bat`을 다시 실행하면 dev 서버는 재시작되지만 기존에 열려 있던 Electron 창은 자동으로 닫히지 않습니다 — 완전히 재시작하려면 `stop.bat`을 먼저 실행하세요.
+
 ### 최초 로그인
 
 앱을 처음 실행하면 회원 데이터가 비어 있을 경우 관리자 계정이 자동 생성됩니다.

@@ -15,6 +15,8 @@ npm start       # Build electron main, start Vite dev server, launch Electron wi
 npm run build   # tsc -b && vite build && tsc -p tsconfig.node.json
 ```
 
+On Windows, `start.bat`/`stop.bat` (project root) wrap `npm start` with a port-5173 cleanup step first (find+kill whatever's listening there via `netstat`/`taskkill`, `stop.bat` also closes the "Club Management" window) - mirrors the same scripts in `SNS-Reader`. Useful since a leftover dev server from *either* project can end up shadowing the other's on port 5173.
+
 ## Architecture
 
 - **`electron/main.ts`** — Main process. Creates the BrowserWindow, registers the `club-media://` protocol (see below), and exposes IPC handlers for members/activities/board/settings CRUD (JSON files under `data/runtime/`), `auth:login` (Knox ID + SHA-256 password check), `dialog:pickFile` / `shell:openPath`, `media:scanFolder` / `media:findPlanFiles` / `media:ensureFolders`, `assets:readMembersFile`, and `export:monthlyExcel` (native Save-As dialog + `server/excelExport.ts`).
