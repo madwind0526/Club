@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { formatYyMm, formatYyyyMm } from "../../data/activitiesStore";
 import { findPlanFiles, pickFile, scanMediaFolder } from "../../data/mediaStore";
@@ -130,7 +131,8 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
   const [draft, setDraft] = useState<Activity>(activity);
   const [isScanning, setIsScanning] = useState<MediaCategory | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-  const [newAttendeeId, setNewAttendeeId] = useState("");
+  const [isAttendeePickerOpen, setIsAttendeePickerOpen] = useState(false);
+  const [selectedAttendeeIds, setSelectedAttendeeIds] = useState<string[]>([]);
   const [isFindingPlanFile, setIsFindingPlanFile] = useState(false);
 
   const planFiles = draft.planFilePaths.map((filePath) => ({
@@ -151,17 +153,29 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
     return { id: member.id, name: member.name, knoxId: member.knoxId, note: member.withdrawn ? "탈퇴" : member.note ?? "" };
   });
 
-  const availableMembers = members
-    .filter((member) => !member.withdrawn && !draft.attendeeIds.includes(member.id))
+  const activeMembers = members
+    .filter((member) => !member.withdrawn)
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
-  const addAttendee = () => {
-    if (!newAttendeeId) {
-      return;
-    }
+  const activeMemberIdSet = new Set(activeMembers.map((member) => member.id));
+  const selectedAttendeeIdSet = new Set(selectedAttendeeIds);
+  const selectedActiveAttendeeCount = selectedAttendeeIds.filter((id) => activeMemberIdSet.has(id)).length;
 
-    setDraft((current) => ({ ...current, attendeeIds: [...current.attendeeIds, newAttendeeId] }));
-    setNewAttendeeId("");
+  const openAttendeePicker = () => {
+    setSelectedAttendeeIds(draft.attendeeIds);
+    setIsAttendeePickerOpen(true);
+  };
+
+  const toggleSelectedAttendee = (memberId: string) => {
+    setSelectedAttendeeIds((current) =>
+      current.includes(memberId) ? current.filter((id) => id !== memberId) : [...current, memberId]
+    );
+  };
+
+  const confirmSelectedAttendees = () => {
+    setDraft((current) => ({ ...current, attendeeIds: selectedAttendeeIds }));
+    onSystemMessage(`참석자 명단을 ${selectedAttendeeIds.length}명으로 변경했습니다.`);
+    setIsAttendeePickerOpen(false);
   };
 
   const removeAttendee = (memberId: string) => {
@@ -307,8 +321,8 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
               <td>{row.knoxId}</td>
               <td>{row.note}</td>
               <td>
-                <button className="btn btn-ghost btn-sm" onClick={() => removeAttendee(row.id)} type="button">
-                  삭제
+                <button className="icon-btn" onClick={() => removeAttendee(row.id)} title="참석자 삭제" type="button">
+                  <Trash2 size={15} />
                 </button>
               </td>
             </tr>
@@ -324,18 +338,11 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
         </tfoot>
       </table>
 
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12 }}>
-        <select onChange={(event) => setNewAttendeeId(event.target.value)} value={newAttendeeId}>
-          <option value="">참가자 선택</option>
-          {availableMembers.map((member) => (
-            <option key={member.id} value={member.id}>
-              {member.name} ({member.knoxId})
-            </option>
-          ))}
-        </select>
-        <button className="btn btn-sm" disabled={!newAttendeeId} onClick={addAttendee} type="button">
-          참가자 추가
+      <div className="attendee-actions">
+        <button className="btn btn-sm" disabled={activeMembers.length === 0} onClick={openAttendeePicker} type="button">
+          참석자 변경
         </button>
+        <span>현재 {attendeeRows.length}명</span>
       </div>
 
       <div className="card" style={{ marginTop: 24 }}>
@@ -399,6 +406,60 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
       {previewImageUrl && (
         <div className="image-preview-overlay" onClick={() => setPreviewImageUrl(null)}>
           <img alt="" className="image-preview-content" src={toDisplayableFileUrl(previewImageUrl)} />
+        </div>
+      )}
+
+      {isAttendeePickerOpen && (
+        <div className="attendee-picker-overlay" onClick={() => setIsAttendeePickerOpen(false)}>
+          <section
+            aria-labelledby="attendee-picker-title"
+            aria-modal="true"
+            className="attendee-picker-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="modal-header">
+              <div>
+                <h2 id="attendee-picker-title">참석자 변경</h2>
+                <p className="attendee-picker-summary">
+                  전체 회원 {activeMembers.length}명 · 선택 {selectedActiveAttendeeCount}명
+                </p>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setIsAttendeePickerOpen(false)} type="button">
+                닫기
+              </button>
+            </div>
+
+            <div className="attendee-picker-list">
+              {activeMembers.map((member) => {
+                const isChecked = selectedAttendeeIdSet.has(member.id);
+
+                return (
+                  <label className="attendee-picker-row" key={member.id}>
+                    <input
+                      checked={isChecked}
+                      onChange={() => toggleSelectedAttendee(member.id)}
+                      type="checkbox"
+                    />
+                    <span>
+                      <strong>{member.name}</strong>
+                      <small>{member.knoxId}</small>
+                    </span>
+                    {isChecked && <em>참석</em>}
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="attendee-picker-actions">
+              <button className="btn btn-ghost" onClick={() => setSelectedAttendeeIds([])} type="button">
+                선택 해제
+              </button>
+              <button className="btn btn-primary" onClick={confirmSelectedAttendees} type="button">
+                확인
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { FileSpreadsheet } from "lucide-react";
 import { formatYyyyMm } from "../../data/activitiesStore";
 import type { Activity } from "../../types/domain";
 
@@ -10,10 +11,12 @@ interface MonthSummary {
 
 interface MonthlyReportViewProps {
   activities: Activity[];
+  excelReportPaths: Record<string, string>;
+  onOpenExcelReport: (yyyyMm: string) => void;
   onOpenMonth: (yyyyMm: string) => void;
 }
 
-export function MonthlyReportView({ activities, onOpenMonth }: MonthlyReportViewProps) {
+export function MonthlyReportView({ activities, excelReportPaths, onOpenExcelReport, onOpenMonth }: MonthlyReportViewProps) {
   const months = useMemo<MonthSummary[]>(() => {
     const summaries = new Map<string, MonthSummary>();
 
@@ -39,12 +42,19 @@ export function MonthlyReportView({ activities, onOpenMonth }: MonthlyReportView
       {months.length === 0 ? (
         <p className="empty-state">등록된 활동이 없습니다.</p>
       ) : (
-        <table className="data-table">
+        <table className="data-table monthly-report-table">
+          <colgroup>
+            <col className="monthly-report-col-month" />
+            <col className="monthly-report-col-count" />
+            <col className="monthly-report-col-attendance" />
+            <col className="monthly-report-col-report" />
+          </colgroup>
           <thead>
             <tr>
               <th>월</th>
               <th>활동 수</th>
               <th>총 참석 인원</th>
+              <th className="monthly-report-report-cell">Report</th>
             </tr>
           </thead>
           <tbody>
@@ -53,6 +63,23 @@ export function MonthlyReportView({ activities, onOpenMonth }: MonthlyReportView
                 <td>{month.yyyyMm}</td>
                 <td>{month.activityCount}건</td>
                 <td>{month.totalAttendance}명</td>
+                <td className="monthly-report-report-cell">
+                  <span className="monthly-report-report-slot">
+                    {excelReportPaths[month.yyyyMm] && (
+                      <button
+                        className="icon-btn monthly-excel-open-button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onOpenExcelReport(month.yyyyMm);
+                        }}
+                        title="Excel 리포트 열기"
+                        type="button"
+                      >
+                        <FileSpreadsheet size={19} />
+                      </button>
+                    )}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>

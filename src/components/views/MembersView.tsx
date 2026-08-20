@@ -44,8 +44,8 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
   const [pendingImport, setPendingImport] = useState<{ rows: MemberDraft[]; sourceLabel: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // admin 회원이 항상 위쪽에, 그 외에는 이름 오름차순으로 정렬해 표시. 탈퇴(소프트 삭제)한
-  // 회원은 명단에서 제외 - 활동 참석자 기록에서는 여전히 이름이 조회됨.
+  // Admin members stay at the top; active non-admin members are sorted by name.
+  // Withdrawn members remain available for historical activity lookups.
   const sortedMembers = useMemo(() => {
     return members
       .filter((member) => !member.withdrawn)
@@ -147,8 +147,7 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
       return;
     }
 
-    // 교체 모드는 기존 회원을 전부 지우고 새로 만들기 때문에 전체 회원의 비밀번호가
-    // 초기화된다 - 되돌릴 수 없는 작업이므로 실행 전에 반드시 확인을 받는다.
+    // Replace mode recreates the roster and resets every member password, so it needs confirmation.
     if (settings.memberImportMode === "replace") {
       setPendingImport({ rows, sourceLabel });
       return;
@@ -203,7 +202,7 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
   };
 
   return (
-    <div>
+    <div className="members-view">
       <div className="view-header">
         <h1>회원 관리</h1>
         {isAdmin && (
@@ -244,45 +243,60 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
         )}
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>이름</th>
-            <th>Knox ID</th>
-            <th>부서</th>
-            <th>연락처</th>
-            <th>가입 날짜</th>
-            <th>회원 등급</th>
-            <th>역할</th>
-            <th>비고</th>
-            {isAdmin && <th />}
-          </tr>
-        </thead>
-        <tbody>
-          {sortedMembers.map((member) => (
-            <tr key={member.id}>
-              <td>{member.name}</td>
-              <td>{member.knoxId}</td>
-              <td>{member.department}</td>
-              <td>{member.contact}</td>
-              <td>{member.joinDate}</td>
-              <td>{member.grade}</td>
-              <td>{member.role}</td>
-              <td>{member.note}</td>
-              {isAdmin && (
-                <td style={{ display: "flex", gap: 6 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => openEditForm(member)} type="button">
-                    수정
-                  </button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setDeleteCandidate(member)} type="button">
-                    삭제
-                  </button>
-                </td>
-              )}
+      <div className="table-scroll members-table-scroll">
+        <table className="data-table members-table">
+          <colgroup>
+            <col className="members-col-name" />
+            <col className="members-col-knox" />
+            <col className="members-col-department" />
+            <col className="members-col-contact" />
+            <col className="members-col-date" />
+            <col className="members-col-grade" />
+            <col className="members-col-role" />
+            <col className="members-col-note" />
+            {isAdmin && <col className="members-col-actions" />}
+          </colgroup>
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>Knox ID</th>
+              <th>부서</th>
+              <th>연락처</th>
+              <th className="members-table-center-cell">가입 날짜</th>
+              <th className="members-table-center-cell">회원 등급</th>
+              <th className="members-table-center-cell">역할</th>
+              <th>비고</th>
+              {isAdmin && <th />}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sortedMembers.map((member) => (
+              <tr key={member.id}>
+                <td>{member.name}</td>
+                <td>{member.knoxId}</td>
+                <td>{member.department}</td>
+                <td>{member.contact}</td>
+                <td className="members-table-center-cell">{member.joinDate}</td>
+                <td className="members-table-center-cell">{member.grade}</td>
+                <td className="members-table-center-cell">{member.role}</td>
+                <td>{member.note}</td>
+                {isAdmin && (
+                  <td>
+                    <div className="members-table-actions">
+                      <button className="btn btn-ghost btn-sm" onClick={() => openEditForm(member)} type="button">
+                        수정
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setDeleteCandidate(member)} type="button">
+                        삭제
+                      </button>
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {isFormOpen && (
         <div className="modal-overlay" onClick={() => setIsFormOpen(false)}>

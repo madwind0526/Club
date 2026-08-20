@@ -19,6 +19,7 @@ import { defaultSettings, loadSettings } from "./data/settingsStore";
 import { listMembers } from "./data/membersStore";
 import { listActivities, saveActivities as persistActivities } from "./data/activitiesStore";
 import { listBoardPosts, saveBoardPosts as persistBoardPosts } from "./data/boardStore";
+import { openFileExternally } from "./data/mediaStore";
 import type { Activity, AppSettings, BoardPost, PublicMember } from "./types/domain";
 
 export type ViewMode =
@@ -34,6 +35,25 @@ export type ViewMode =
 
 export type ActivitiesViewMode = "photo" | "card" | "list";
 
+const MONTHLY_EXCEL_REPORTS_KEY = "club-management.monthlyExcelReports";
+
+function loadMonthlyExcelReports() {
+  try {
+    const raw = localStorage.getItem(MONTHLY_EXCEL_REPORTS_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveMonthlyExcelReports(paths: Record<string, string>) {
+  try {
+    localStorage.setItem(MONTHLY_EXCEL_REPORTS_KEY, JSON.stringify(paths));
+  } catch {
+    // Keeping the in-memory path is still useful for the current session.
+  }
+}
+
 export function App() {
   const [session, setSession] = useState<PublicMember | null>(() => loadSession());
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
@@ -46,6 +66,7 @@ export function App() {
   const [quickViewActivityId, setQuickViewActivityId] = useState<string | null>(null);
   const [reportModalActivityId, setReportModalActivityId] = useState<string | null>(null);
   const [monthlyReportMonth, setMonthlyReportMonth] = useState<string | null>(null);
+  const [monthlyExcelReports, setMonthlyExcelReports] = useState<Record<string, string>>(() => loadMonthlyExcelReports());
   const [systemMessage, setSystemMessage] = useState("준비되었습니다.");
 
   useEffect(() => {
@@ -192,6 +213,26 @@ export function App() {
     setSystemMessage(activity ? `"${activity.title || "제목 없음"}" 활동을 삭제했습니다.` : "활동을 삭제했습니다.");
   };
 
+  const handleMonthlyExcelExported = (yyyyMm: string, filePath: string) => {
+    setMonthlyExcelReports((current) => {
+      const next = { ...current, [yyyyMm]: filePath };
+      saveMonthlyExcelReports(next);
+      return next;
+    });
+  };
+
+  const handleOpenMonthlyExcelReport = async (yyyyMm: string) => {
+    const filePath = monthlyExcelReports[yyyyMm];
+
+    if (!filePath) {
+      setSystemMessage("저장된 Excel 리포트 경로가 없습니다.");
+      return;
+    }
+
+    const result = await openFileExternally(filePath);
+    setSystemMessage(result.ok ? "Excel 리포트를 열었습니다." : result.error ?? "Excel 리포트를 열지 못했습니다.");
+  };
+
   if (!session) {
     return <LoginView clubName={settings.clubName} onLoginSuccess={handleLoginSuccess} theme={settings.theme} />;
   }
@@ -235,6 +276,7 @@ export function App() {
         {view === "activity-register" && (
           <ActivityRegisterView
             currentMember={session}
+            members={members}
             onCreate={(activity) => {
               void applyActivities([activity, ...activities]);
               navigate("activities");
@@ -269,7 +311,12 @@ export function App() {
           <WeeklyReportView activities={activities} onDeleteActivity={handleDeleteActivity} onOpenActivity={openReportFor} />
         )}
         {view === "monthly-report" && (
-          <MonthlyReportView activities={activities} onOpenMonth={setMonthlyReportMonth} />
+          <MonthlyReportView
+            activities={activities}
+            excelReportPaths={monthlyExcelReports}
+            onOpenExcelReport={(yyyyMm) => void handleOpenMonthlyExcelReport(yyyyMm)}
+            onOpenMonth={setMonthlyReportMonth}
+          />
         )}
 
         {view === "settings" && (
@@ -325,6 +372,7 @@ export function App() {
               activities={activities}
               members={members}
               onClose={() => setMonthlyReportMonth(null)}
+              onExported={handleMonthlyExcelExported}
               onSystemMessage={setSystemMessage}
               settings={settings}
               yyyyMm={monthlyReportMonth}

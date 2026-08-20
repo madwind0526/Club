@@ -6,19 +6,30 @@ import type { Activity, PublicMember } from "../../types/domain";
 
 interface ActivityRegisterViewProps {
   currentMember: PublicMember;
+  members: PublicMember[];
   onCreate: (activity: Activity) => void;
   onSystemMessage: (message: string) => void;
 }
 
 const today = new Date().toISOString().slice(0, 10);
 
-export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage }: ActivityRegisterViewProps) {
+export function ActivityRegisterView({ currentMember, members, onCreate, onSystemMessage }: ActivityRegisterViewProps) {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(today);
   const [weekOfMonth, setWeekOfMonth] = useState(computeWeekOfMonth(today));
   const [planFiles, setPlanFiles] = useState<Array<{ path: string; name: string }>>([]);
   const [content, setContent] = useState("");
   const [isFindingPlanFile, setIsFindingPlanFile] = useState(false);
+  const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
+  const [isAttendeePickerOpen, setIsAttendeePickerOpen] = useState(false);
+
+  const activeMembers = members
+    .filter((member) => !member.withdrawn)
+    .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  const selectedAttendeeIdSet = new Set(attendeeIds);
+  const selectedAttendees = attendeeIds
+    .map((id) => activeMembers.find((member) => member.id === id))
+    .filter((member): member is PublicMember => Boolean(member));
 
   const handleDateChange = (value: string) => {
     setDate(value);
@@ -58,6 +69,12 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
     setPlanFiles((current) => current.filter((file) => file.path !== path));
   };
 
+  const toggleAttendee = (memberId: string) => {
+    setAttendeeIds((current) =>
+      current.includes(memberId) ? current.filter((id) => id !== memberId) : [...current, memberId]
+    );
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) {
       onSystemMessage("제목을 입력해 주세요.");
@@ -71,7 +88,7 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
       weekOfMonth,
       planFilePaths: planFiles.map((file) => file.path),
       content,
-      attendeeIds: [],
+      attendeeIds,
       photoFileNames: [],
       receiptFileNames: [],
       expenseFileNames: [],
@@ -137,12 +154,82 @@ export function ActivityRegisterView({ currentMember, onCreate, onSystemMessage 
           <textarea id="activity-content" onChange={(event) => setContent(event.target.value)} value={content} />
         </div>
 
+        <div className="form-field">
+          <label>참석자</label>
+          <div className="attendee-actions">
+            <button className="btn btn-sm" onClick={() => setIsAttendeePickerOpen(true)} type="button">
+              참석자 선택
+            </button>
+            <span>선택 {attendeeIds.length}명</span>
+          </div>
+          {selectedAttendees.length > 0 ? (
+            <div className="register-attendee-list">
+              {selectedAttendees.map((member) => (
+                <span className="register-attendee-chip" key={member.id}>
+                  {member.name} ({member.knoxId})
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="thumbnail-empty">선택된 참석자가 없습니다.</p>
+          )}
+        </div>
+
         <div className="form-actions">
           <button className="btn btn-primary" onClick={() => void handleSubmit()} type="button">
             활동등록
           </button>
         </div>
       </div>
+
+      {isAttendeePickerOpen && (
+        <div className="attendee-picker-overlay" onClick={() => setIsAttendeePickerOpen(false)}>
+          <section
+            aria-labelledby="register-attendee-picker-title"
+            aria-modal="true"
+            className="attendee-picker-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="modal-header">
+              <div>
+                <h2 id="register-attendee-picker-title">참석자 선택</h2>
+                <p className="attendee-picker-summary">
+                  전체 회원 {activeMembers.length}명 · 선택 {attendeeIds.length}명
+                </p>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setIsAttendeePickerOpen(false)} type="button">
+                닫기
+              </button>
+            </div>
+
+            <div className="attendee-picker-list">
+              {activeMembers.map((member) => (
+                <label className="attendee-picker-row" key={member.id}>
+                  <input
+                    checked={selectedAttendeeIdSet.has(member.id)}
+                    onChange={() => toggleAttendee(member.id)}
+                    type="checkbox"
+                  />
+                  <span>
+                    <strong>{member.name}</strong>
+                    <small>{member.knoxId}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <div className="attendee-picker-actions">
+              <button className="btn btn-ghost" onClick={() => setAttendeeIds([])} type="button">
+                선택 해제
+              </button>
+              <button className="btn btn-primary" onClick={() => setIsAttendeePickerOpen(false)} type="button">
+                확인
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

@@ -33,7 +33,7 @@ export function ActivityListTable({ activities, onOpenActivity, onDelete }: Acti
 
   return (
     <>
-      <table className="data-table">
+      <table className="data-table activity-list-table">
         <colgroup>
           <col style={{ width: 100 }} />
           <col />
@@ -45,9 +45,9 @@ export function ActivityListTable({ activities, onOpenActivity, onDelete }: Acti
           <tr>
             <th>날짜</th>
             <th>제목</th>
-            <th>참석자 수</th>
-            <th>상태</th>
-            {onDelete && <th>삭제</th>}
+            <th className="activity-table-center-cell">참석자 수</th>
+            <th className="activity-table-center-cell">상태</th>
+            {onDelete && <th className="activity-table-center-cell">삭제</th>}
           </tr>
         </thead>
         <tbody>
@@ -55,15 +55,17 @@ export function ActivityListTable({ activities, onOpenActivity, onDelete }: Acti
             <tr key={activity.id} onClick={() => onOpenActivity(activity.id)}>
               <td>{activity.date}</td>
               <td>
-                {activity.title || "제목 없음"}
-                <div className="activity-row-meta">{activity.weekOfMonth}주차</div>
+                <span className="activity-title-line">
+                  <span className="activity-title-text">{activity.title || "제목 없음"}</span>
+                  <span className="activity-row-meta">{activity.weekOfMonth}주차</span>
+                </span>
               </td>
-              <td>{activity.attendeeIds.length}명</td>
-              <td>
+              <td className="activity-table-center-cell">{activity.attendeeIds.length}명</td>
+              <td className="activity-table-center-cell">
                 <StatusBadge date={activity.date} />
               </td>
               {onDelete && (
-                <td>
+                <td className="activity-table-center-cell">
                   <button
                     className="icon-btn"
                     onClick={(event) => {

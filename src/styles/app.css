@@ -499,10 +499,35 @@ a {
   font-size: 0.9rem;
 }
 
+.activity-row-content {
+  min-width: 0;
+}
+
 .activity-row-meta {
   color: var(--text-muted);
   font-size: 0.78rem;
   margin-top: 2px;
+}
+
+.activity-title-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.activity-title-line .activity-row-meta {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+.activity-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .activity-row .date-badge {
@@ -603,6 +628,188 @@ a {
 
 .data-table tbody tr:hover {
   background: var(--hover-bg);
+}
+
+.activity-list-table th,
+.activity-list-table td {
+  vertical-align: middle;
+}
+
+.activity-list-table .activity-table-center-cell {
+  text-align: center;
+}
+
+.activity-list-table .activity-table-center-cell .badge,
+.activity-list-table .activity-table-center-cell .icon-btn {
+  margin-inline: auto;
+}
+
+.monthly-report-table th,
+.monthly-report-table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.monthly-report-table {
+  table-layout: fixed;
+}
+
+.monthly-report-col-month {
+  width: 30%;
+}
+
+.monthly-report-col-count {
+  width: 28%;
+}
+
+.monthly-report-col-attendance {
+  width: 30%;
+}
+
+.monthly-report-col-report {
+  width: 12%;
+}
+
+.monthly-report-table .monthly-report-report-cell {
+  padding-left: 6px;
+  padding-right: 6px;
+  text-align: center;
+}
+
+.monthly-report-report-slot {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.monthly-excel-open-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+}
+
+.monthly-attendance-table th,
+.monthly-attendance-table td {
+  vertical-align: middle;
+}
+
+.monthly-attendance-table th span {
+  font-weight: 400;
+}
+
+.monthly-attendance-table .monthly-attendance-center-cell {
+  text-align: center;
+}
+
+.monthly-attendance-table .monthly-attendance-money-cell {
+  text-align: right;
+}
+
+.monthly-line-item-table .monthly-line-item-price-cell {
+  text-align: right;
+}
+
+.monthly-line-item-table .monthly-line-item-number-cell {
+  text-align: center;
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.members-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.members-view .view-header {
+  flex: 0 0 auto;
+}
+
+.members-table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border-bottom: 1px solid var(--border);
+  scrollbar-gutter: stable;
+}
+
+.members-table-scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.members-table-scroll::-webkit-scrollbar-track {
+  background: var(--bg-subtle);
+}
+
+.members-table-scroll::-webkit-scrollbar-thumb {
+  border: 3px solid var(--bg-subtle);
+  border-radius: 999px;
+  background: var(--border-strong);
+}
+
+.members-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.members-table {
+  min-width: 1120px;
+}
+
+.members-table th,
+.members-table td {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.members-table .members-table-center-cell {
+  text-align: center;
+}
+
+.members-col-name {
+  width: 92px;
+}
+
+.members-col-knox {
+  width: 130px;
+}
+
+.members-col-department {
+  width: 140px;
+}
+
+.members-col-contact {
+  width: 140px;
+}
+
+.members-col-date {
+  width: 112px;
+}
+
+.members-col-grade {
+  width: 96px;
+}
+
+.members-col-role {
+  width: 84px;
+}
+
+.members-col-note {
+  width: 180px;
+}
+
+.members-col-actions {
+  width: 116px;
+}
+
+.members-table-actions {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
 }
 
 .data-table-footer {
@@ -936,6 +1143,14 @@ a {
   white-space: nowrap;
 }
 
+.board-post-date-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
 .board-comment {
   border-top: 1px solid var(--border);
   padding: 10px 0;
@@ -996,6 +1211,139 @@ a {
   margin-bottom: 16px;
 }
 
+/* ---------- Attendee picker ---------- */
+
+.attendee-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.attendee-actions span,
+.attendee-picker-summary {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.attendee-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.46);
+  padding: 24px;
+}
+
+.attendee-picker-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(560px, 100%);
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  padding: 22px;
+}
+
+.attendee-picker-modal h2 {
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.attendee-picker-list {
+  display: grid;
+  gap: 6px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.attendee-picker-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.attendee-picker-row:hover {
+  background: var(--hover-bg);
+}
+
+.attendee-picker-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.attendee-picker-row span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.attendee-picker-row strong,
+.attendee-picker-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attendee-picker-row strong {
+  font-size: 0.88rem;
+}
+
+.attendee-picker-row small,
+.attendee-picker-row em {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-style: normal;
+}
+
+.attendee-picker-row-disabled {
+  cursor: default;
+  opacity: 0.68;
+}
+
+.attendee-picker-row-disabled:hover {
+  background: transparent;
+}
+
+.attendee-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.register-attendee-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.register-attendee-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  padding: 4px 10px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
 /* ---------- 2x2 summary table ---------- */
 
 .summary-2x2 {
@@ -1023,6 +1371,15 @@ a {
 .summary-2x2 .summary-value {
   font-size: 1.1rem;
   font-weight: 700;
+}
+
+.monthly-detail-summary div {
+  text-align: center;
+}
+
+.monthly-detail-summary .summary-label,
+.monthly-detail-summary .summary-value {
+  font-size: 1.1rem;
 }
 
 /* ---------- Login ---------- */
@@ -1087,5 +1444,23 @@ a {
   .stat-card-grid,
   .summary-card-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .attendee-actions,
+  .attendee-picker-actions,
+  .modal-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .attendee-picker-overlay {
+    padding: 12px;
+  }
+
+  .attendee-picker-modal {
+    max-height: calc(100vh - 24px);
+    padding: 16px;
   }
 }

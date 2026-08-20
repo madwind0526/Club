@@ -41,9 +41,11 @@ function ActivityListCard({
         activities.map((activity) => (
           <div className="activity-row" key={activity.id} onClick={() => onOpenActivity(activity.id)}>
             <span className="date-badge">{formatYyMm(activity.date)}</span>
-            <div>
-              <div className="activity-row-title">{activity.title || "제목 없음"}</div>
-              <div className="activity-row-meta">{activity.weekOfMonth}주차</div>
+            <div className="activity-row-content">
+              <span className="activity-title-line">
+                <span className="activity-row-title activity-title-text">{activity.title || "제목 없음"}</span>
+                <span className="activity-row-meta">{activity.weekOfMonth}주차</span>
+              </span>
             </div>
             <span className="activity-row-attendees">{activity.attendeeIds.length}명</span>
           </div>

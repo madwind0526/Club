@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { BoardCategory, BoardPost, PublicMember } from "../../types/domain";
 
@@ -30,11 +31,17 @@ export function BoardView({ posts, members, currentMember, onSave, onSystemMessa
 
   const getAuthorName = (id: string) => members.find((member) => member.id === id)?.name ?? "알 수 없음";
 
-  // admin은 모든 글을, 작성자 본인은 자기 글만 삭제할 수 있다.
+  // Admins can delete every post; authors can delete only their own posts.
   const canDeletePost = (post: BoardPost) => isAdmin(currentMember) || post.authorId === currentMember.id;
 
   const handleDeletePost = () => {
     if (!deleteCandidate) {
+      return;
+    }
+
+    if (!canDeletePost(deleteCandidate)) {
+      onSystemMessage("게시글 삭제 권한이 없습니다.");
+      setDeleteCandidate(null);
       return;
     }
 
@@ -141,7 +148,22 @@ export function BoardView({ posts, members, currentMember, onSave, onSystemMessa
               <div className="board-post-title">{post.title}</div>
             </div>
             <span className="board-post-meta">{getAuthorName(post.authorId)}</span>
-            <span className="board-post-meta">{formatDateTime(post.createdAt)}</span>
+            <div className="board-post-date-actions">
+              <span className="board-post-meta">{formatDateTime(post.createdAt)}</span>
+              {canDeletePost(post) && (
+                <button
+                  className="icon-btn"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDeleteCandidate(post);
+                  }}
+                  title="게시글 삭제"
+                  type="button"
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </div>
           </div>
         ))
       )}

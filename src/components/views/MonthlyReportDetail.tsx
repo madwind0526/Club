@@ -9,6 +9,7 @@ interface MonthlyReportDetailProps {
   members: PublicMember[];
   settings: AppSettings;
   onClose: () => void;
+  onExported: (yyyyMm: string, filePath: string) => void;
   onSystemMessage: (message: string) => void;
 }
 
@@ -50,31 +51,33 @@ function MonthlyLineItemTable({ title, rows }: { title: string; rows: Array<Rece
       {rows.length === 0 ? (
         <p className="thumbnail-empty">등록된 내역이 없습니다.</p>
       ) : (
-        <table className="data-table">
+        <table className="data-table monthly-line-item-table">
           <thead>
             <tr>
+              <th className="monthly-line-item-number-cell">번호</th>
               <th>날짜</th>
               <th>구매 내용</th>
-              <th>가격</th>
+              <th className="monthly-line-item-price-cell">가격</th>
               <th>비고</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {rows.map((row, index) => (
               <tr key={row.id}>
+                <td className="monthly-line-item-number-cell">{index + 1}</td>
                 <td>{row.date}</td>
                 <td>{row.item}</td>
-                <td>{formatWon(row.price)}</td>
+                <td className="monthly-line-item-price-cell">{formatWon(row.price)}</td>
                 <td>{row.note}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={2} className="data-table-footer">
+              <td colSpan={3} className="data-table-footer">
                 합계
               </td>
-              <td className="data-table-footer" colSpan={2}>
+              <td className="data-table-footer monthly-line-item-price-cell" colSpan={2}>
                 {formatWon(total)}
               </td>
             </tr>
@@ -85,7 +88,15 @@ function MonthlyLineItemTable({ title, rows }: { title: string; rows: Array<Rece
   );
 }
 
-export function MonthlyReportDetail({ yyyyMm, activities, members, settings, onClose, onSystemMessage }: MonthlyReportDetailProps) {
+export function MonthlyReportDetail({
+  yyyyMm,
+  activities,
+  members,
+  settings,
+  onClose,
+  onExported,
+  onSystemMessage
+}: MonthlyReportDetailProps) {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -96,6 +107,10 @@ export function MonthlyReportDetail({ yyyyMm, activities, members, settings, onC
       const result = await exportMonthlyReportExcel(yyyyMm);
 
       if (result.ok) {
+        if (result.path) {
+          onExported(yyyyMm, result.path);
+        }
+
         onSystemMessage(result.path ? `엑셀 파일로 내보냈습니다: ${result.path}` : "엑셀 파일로 내보냈습니다.");
       } else if (result.error) {
         onSystemMessage(result.error);
@@ -167,7 +182,7 @@ export function MonthlyReportDetail({ yyyyMm, activities, members, settings, onC
         <p className="empty-state">해당 월에 등록된 활동이 없습니다.</p>
       ) : (
         <>
-          <div className="summary-2x2">
+          <div className="summary-2x2 monthly-detail-summary">
             <div>
               <div className="summary-label">이달의 활동 수</div>
               <div className="summary-value">{monthActivities.length}건</div>
@@ -178,37 +193,37 @@ export function MonthlyReportDetail({ yyyyMm, activities, members, settings, onC
             </div>
           </div>
 
-          <table className="data-table">
+          <table className="data-table monthly-attendance-table">
             <thead>
               <tr>
-                <th>번호</th>
+                <th className="monthly-attendance-center-cell">번호</th>
                 <th>이름</th>
                 <th>Knox ID</th>
                 {monthActivities.map((activity, index) => (
-                  <th key={activity.id}>
+                  <th className="monthly-attendance-center-cell" key={activity.id}>
                     {index + 1}차
                     <br />
-                    <span style={{ fontWeight: 400 }}>{activity.date.slice(5)}</span>
+                    <span>{activity.date.slice(5)}</span>
                   </th>
                 ))}
-                <th>합</th>
-                <th>후원금액</th>
+                <th className="monthly-attendance-center-cell">합</th>
+                <th className="monthly-attendance-money-cell">후원금액</th>
                 <th>비고</th>
               </tr>
             </thead>
             <tbody>
               {attendanceRows.map((row, index) => (
                 <tr key={row.member.id}>
-                  <td>{index + 1}</td>
+                  <td className="monthly-attendance-center-cell">{index + 1}</td>
                   <td>{row.member.name}</td>
                   <td>{row.member.knoxId}</td>
                   {row.marks.map((attended, markIndex) => (
-                    <td key={markIndex} style={{ textAlign: "center" }}>
+                    <td className="monthly-attendance-center-cell" key={markIndex}>
                       {attended ? "○" : ""}
                     </td>
                   ))}
-                  <td>{row.attendedCount}</td>
-                  <td>{formatWon(row.sponsorship)}</td>
+                  <td className="monthly-attendance-center-cell">{row.attendedCount}</td>
+                  <td className="monthly-attendance-money-cell">{formatWon(row.sponsorship)}</td>
                   <td>{row.member.withdrawn ? "탈퇴" : ""}</td>
                 </tr>
               ))}
@@ -218,7 +233,7 @@ export function MonthlyReportDetail({ yyyyMm, activities, members, settings, onC
                 <td className="data-table-footer" colSpan={4 + monthActivities.length}>
                   총원 {totalHeadcount}명
                 </td>
-                <td className="data-table-footer">{formatWon(totalSponsorship)}</td>
+                <td className="data-table-footer monthly-attendance-money-cell">{formatWon(totalSponsorship)}</td>
                 <td className="data-table-footer" />
               </tr>
             </tfoot>
