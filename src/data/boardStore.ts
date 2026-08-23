@@ -20,5 +20,11 @@ export async function saveBoardPosts(posts: BoardPost[]): Promise<BoardPost[]> {
     body: JSON.stringify(posts)
   });
 
-  return response.json();
+  const body = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error((body && typeof body === "object" && "error" in body && body.error) || "게시글을 저장하지 못했습니다.");
+  }
+
+  return body as BoardPost[];
 }

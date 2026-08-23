@@ -350,7 +350,9 @@
     "weekOfMonth": 3,
     "content": "한 해를 마무리하는 송년회입니다. 장소와 시간은 추후 확정하여 공지하겠습니다.",
     "attendeeIds": [
-      "member-admin-seed"
+      "member-admin-seed",
+      "member-1786278258777-17-69",
+      "member-002"
     ],
     "photoFileNames": [],
     "receiptFileNames": [],

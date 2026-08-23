@@ -37,9 +37,14 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
     return;
   }
 
-  await fetch("/api/settings", {
+  const response = await fetch("/api/settings", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings)
   });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error((body && typeof body === "object" && "error" in body && body.error) || "설정 저장에 실패했습니다.");
+  }
 }

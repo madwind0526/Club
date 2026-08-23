@@ -35,14 +35,14 @@ function LogoPreview({ logoPath }: { logoPath: string }) {
   }
 
   return (
-    <img
-      alt="로고 미리보기"
-      className="club-logo"
-      key={logoPath}
-      onError={() => setFailed(true)}
-      src={toDisplayableFileUrl(logoPath)}
-      style={{ width: 72, height: 72 }}
-    />
+    <div className="club-logo" key={logoPath} style={{ width: 72, height: 72 }}>
+      <img
+        alt="로고 미리보기"
+        className="club-logo-image"
+        onError={() => setFailed(true)}
+        src={toDisplayableFileUrl(logoPath)}
+      />
+    </div>
   );
 }
 
@@ -108,8 +108,8 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
       await saveSettings(draft);
       onSaved(draft);
       onSystemMessage("설정을 저장했습니다.");
-    } catch {
-      onSystemMessage("설정 저장에 실패했습니다.");
+    } catch (error) {
+      onSystemMessage(error instanceof Error ? error.message : "설정 저장에 실패했습니다.");
     } finally {
       setIsSaving(false);
     }
@@ -124,8 +124,8 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
 
     try {
       await saveSettings(next);
-    } catch {
-      onSystemMessage("테마 저장에 실패했습니다.");
+    } catch (error) {
+      onSystemMessage(error instanceof Error ? error.message : "테마 저장에 실패했습니다.");
     }
   };
 

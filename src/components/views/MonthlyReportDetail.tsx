@@ -8,6 +8,7 @@ interface MonthlyReportDetailProps {
   activities: Activity[];
   members: PublicMember[];
   settings: AppSettings;
+  currentMember: PublicMember;
   onClose: () => void;
   onExported: (yyyyMm: string, filePath: string) => void;
   onSystemMessage: (message: string) => void;
@@ -93,14 +94,21 @@ export function MonthlyReportDetail({
   activities,
   members,
   settings,
+  currentMember,
   onClose,
   onExported,
   onSystemMessage
 }: MonthlyReportDetailProps) {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const isAdmin = currentMember.role === "admin";
 
   const handleExportExcel = async () => {
+    if (!isAdmin) {
+      onSystemMessage("권한이 없습니다. admin만 Excel로 내보낼 수 있습니다.");
+      return;
+    }
+
     setIsExporting(true);
 
     try {

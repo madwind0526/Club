@@ -15,6 +15,7 @@ interface PlanFileControlsProps {
   onAutoDetect: () => void;
   onRemove: (path: string) => void;
   onSystemMessage: (message: string) => void;
+  readOnly?: boolean;
 }
 
 const ICON_BY_KIND: Partial<Record<PlanFileKind, typeof FileText>> = {
@@ -27,11 +28,13 @@ const ICON_BY_KIND: Partial<Record<PlanFileKind, typeof FileText>> = {
 function PlanFileTile({
   file,
   onRemove,
-  onSystemMessage
+  onSystemMessage,
+  readOnly
 }: {
   file: PlanFile;
   onRemove: (path: string) => void;
   onSystemMessage: (message: string) => void;
+  readOnly: boolean;
 }) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const kind = getPlanFileKind(file.path);
@@ -59,9 +62,11 @@ function PlanFileTile({
             <span>{file.name}</span>
           </div>
         )}
-        <button className="thumbnail-delete" onClick={() => onRemove(file.path)} title="삭제" type="button">
-          ×
-        </button>
+        {!readOnly && (
+          <button className="thumbnail-delete" onClick={() => onRemove(file.path)} title="삭제" type="button">
+            ×
+          </button>
+        )}
       </div>
 
       {isPreviewOpen && (
@@ -82,24 +87,34 @@ function PlanFileTile({
   );
 }
 
-export function PlanFileControls({ planFiles, isFinding, onPick, onAutoDetect, onRemove, onSystemMessage }: PlanFileControlsProps) {
+export function PlanFileControls({
+  planFiles,
+  isFinding,
+  onPick,
+  onAutoDetect,
+  onRemove,
+  onSystemMessage,
+  readOnly = false
+}: PlanFileControlsProps) {
   return (
     <>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <button className="btn btn-sm" onClick={onPick} type="button">
-          파일 첨부
-        </button>
-        <button className="btn btn-sm" disabled={isFinding} onClick={onAutoDetect} type="button">
-          {isFinding ? "찾는 중..." : "자동 첨부"}
-        </button>
-      </div>
+      {!readOnly && (
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <button className="btn btn-sm" onClick={onPick} type="button">
+            파일 첨부
+          </button>
+          <button className="btn btn-sm" disabled={isFinding} onClick={onAutoDetect} type="button">
+            {isFinding ? "찾는 중..." : "자동 첨부"}
+          </button>
+        </div>
+      )}
 
       {planFiles.length === 0 ? (
         <p className="thumbnail-empty">첨부된 파일 없음</p>
       ) : (
         <div className="thumbnail-grid" style={{ marginTop: 10 }}>
           {planFiles.map((file) => (
-            <PlanFileTile file={file} key={file.path} onRemove={onRemove} onSystemMessage={onSystemMessage} />
+            <PlanFileTile file={file} key={file.path} onRemove={onRemove} onSystemMessage={onSystemMessage} readOnly={readOnly} />
           ))}
         </div>
       )}

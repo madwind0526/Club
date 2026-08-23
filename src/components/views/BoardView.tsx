@@ -13,6 +13,18 @@ interface BoardViewProps {
 const categories: Array<"전체" | BoardCategory> = ["전체", "공지", "일반", "요청", "QnA"];
 const isAdmin = (member: PublicMember) => member.role === "admin";
 
+const CATEGORY_BADGE_MODIFIER: Record<BoardCategory, string | null> = {
+  공지: "badge-category-notice",
+  일반: null,
+  요청: "badge-category-request",
+  QnA: "badge-category-qna"
+};
+
+function categoryBadgeClass(category: BoardCategory) {
+  const modifier = CATEGORY_BADGE_MODIFIER[category];
+  return modifier ? `badge ${modifier}` : "badge";
+}
+
 function formatDateTime(iso: string) {
   return iso.slice(0, 16).replace("T", " ");
 }
@@ -143,7 +155,11 @@ export function BoardView({ posts, members, currentMember, onSave, onSystemMessa
       ) : (
         visiblePosts.map((post) => (
           <div className="board-post-row" key={post.id} onClick={() => setSelectedPostId(post.id)}>
-            {post.pinned ? <span className="badge badge-pinned">고정</span> : <span className="badge">{post.category}</span>}
+            {post.pinned ? (
+              <span className="badge badge-pinned">고정</span>
+            ) : (
+              <span className={categoryBadgeClass(post.category)}>{post.category}</span>
+            )}
             <div>
               <div className="board-post-title">{post.title}</div>
             </div>
@@ -234,7 +250,7 @@ export function BoardView({ posts, members, currentMember, onSave, onSystemMessa
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <div>
-                <span className="badge">{selectedPost.category}</span>
+                <span className={categoryBadgeClass(selectedPost.category)}>{selectedPost.category}</span>
                 <h2 style={{ marginTop: 8 }}>{selectedPost.title}</h2>
                 <span className="board-post-meta">
                   {getAuthorName(selectedPost.authorId)} · {formatDateTime(selectedPost.createdAt)}

@@ -14,13 +14,13 @@ import { MembersView } from "./components/views/MembersView";
 import { WeeklyReportView } from "./components/views/WeeklyReportView";
 import { MonthlyReportView } from "./components/views/MonthlyReportView";
 import { MonthlyReportDetail } from "./components/views/MonthlyReportDetail";
-import { clearSession, loadSession, saveSession } from "./data/authStore";
+import { clearSession, fetchServerSession, loadSession, logout as serverLogout, saveSession } from "./data/authStore";
 import { defaultSettings, loadSettings } from "./data/settingsStore";
 import { listMembers } from "./data/membersStore";
 import { listActivities, saveActivities as persistActivities } from "./data/activitiesStore";
 import { listBoardPosts, saveBoardPosts as persistBoardPosts } from "./data/boardStore";
 import { openFileExternally } from "./data/mediaStore";
-import type { Activity, AppSettings, BoardPost, PublicMember } from "./types/domain";
+import type { Activity, AppSettings, BoardPost, PublicMember, ThemeMode } from "./types/domain";
 
 export type ViewMode =
   | "home"
@@ -34,6 +34,10 @@ export type ViewMode =
   | "profile";
 
 export type ActivitiesViewMode = "photo" | "card" | "list";
+
+// Menus the server also treats as admin-only (see vite.config.mts / electron/main.ts) - kept
+// here so navigating to one shows a warning instead of silently rendering nothing.
+const ADMIN_ONLY_VIEWS = new Set<ViewMode>(["activity-register", "weekly-report", "settings"]);
 
 const MONTHLY_EXCEL_REPORTS_KEY = "club-management.monthlyExcelReports";
 
@@ -54,6 +58,28 @@ function saveMonthlyExcelReports(paths: Record<string, string>) {
   }
 }
 
+// Settings' theme control is admin-only (it writes the shared app-settings.json), but any
+// member should still be able to flip light/dark for their own view. This is a per-browser
+// override layered on top of the admin-set default, never sent to the server.
+const THEME_OVERRIDE_KEY = "club-management.themeOverride";
+
+function loadThemeOverride(): ThemeMode | null {
+  try {
+    const raw = localStorage.getItem(THEME_OVERRIDE_KEY);
+    return raw === "light" || raw === "dark" ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveThemeOverride(theme: ThemeMode) {
+  try {
+    localStorage.setItem(THEME_OVERRIDE_KEY, theme);
+  } catch {
+    // Falls back to the admin-set default next load - not worth surfacing an error for.
+  }
+}
+
 export function App() {
   const [session, setSession] = useState<PublicMember | null>(() => loadSession());
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
@@ -67,12 +93,37 @@ export function App() {
   const [reportModalActivityId, setReportModalActivityId] = useState<string | null>(null);
   const [monthlyReportMonth, setMonthlyReportMonth] = useState<string | null>(null);
   const [monthlyExcelReports, setMonthlyExcelReports] = useState<Record<string, string>>(() => loadMonthlyExcelReports());
+  const [themeOverride, setThemeOverride] = useState<ThemeMode | null>(() => loadThemeOverride());
   const [systemMessage, setSystemMessage] = useState("준비되었습니다.");
+
+  const effectiveTheme = themeOverride ?? settings.theme;
+
+  const toggleTheme = () => {
+    const next: ThemeMode = effectiveTheme === "dark" ? "light" : "dark";
+    setThemeOverride(next);
+    saveThemeOverride(next);
+  };
 
   useEffect(() => {
     let mounted = true;
 
     const loadInitialData = async () => {
+      // The cached (localStorage) session is only a UI hint - confirm it against the server's
+      // actual session (cookie for the browser dev path, IPC session for Electron) before
+      // trusting it for anything. An expired/invalid session here means every other fetch below
+      // will come back empty (server now requires login to read club data), so log out cleanly
+      // instead of showing a blank app.
+      const serverSession = await fetchServerSession();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!serverSession) {
+        clearSession();
+        setSession(null);
+      }
+
       const [loadedSettings, loadedMembers, loadedActivities, loadedBoardPosts] = await Promise.all([
         loadSettings(),
         listMembers(),
@@ -97,6 +148,11 @@ export function App() {
         }
 
         const refreshed = loadedMembers.find((member) => member.id === current.id);
+
+        if (refreshed) {
+          saveSession(refreshed);
+        }
+
         return refreshed ?? current;
       });
 
@@ -121,6 +177,11 @@ export function App() {
   );
 
   const navigate = (nextView: ViewMode) => {
+    if (ADMIN_ONLY_VIEWS.has(nextView) && session?.role !== "admin") {
+      setSystemMessage("권한이 없습니다. admin만 접근할 수 있는 메뉴입니다.");
+      return;
+    }
+
     setView(nextView);
   };
 
@@ -129,22 +190,28 @@ export function App() {
   };
 
   const applyActivities = async (nextActivities: Activity[]) => {
+    const previousActivities = activities;
     setActivities(nextActivities);
 
     try {
       await persistActivities(nextActivities);
-    } catch {
-      setSystemMessage("활동 데이터를 저장하지 못했습니다.");
+    } catch (error) {
+      // Roll back the optimistic update - a rejected save (e.g. a non-admin's browser blindly
+      // POSTing a new activity) must not leave the UI showing a change the server didn't keep.
+      setActivities(previousActivities);
+      setSystemMessage(error instanceof Error ? error.message : "활동 데이터를 저장하지 못했습니다.");
     }
   };
 
   const applyBoardPosts = async (nextPosts: BoardPost[]) => {
+    const previousPosts = boardPosts;
     setBoardPosts(nextPosts);
 
     try {
       await persistBoardPosts(nextPosts);
-    } catch {
-      setSystemMessage("게시글을 저장하지 못했습니다.");
+    } catch (error) {
+      setBoardPosts(previousPosts);
+      setSystemMessage(error instanceof Error ? error.message : "게시글을 저장하지 못했습니다.");
     }
   };
 
@@ -159,6 +226,7 @@ export function App() {
     clearSession();
     setSession(null);
     setSystemMessage("로그아웃했습니다.");
+    void serverLogout();
   };
 
   // Used after the current user edits their own profile - keeps the member list and the
@@ -234,19 +302,22 @@ export function App() {
   };
 
   if (!session) {
-    return <LoginView clubName={settings.clubName} onLoginSuccess={handleLoginSuccess} theme={settings.theme} />;
+    return <LoginView clubName={settings.clubName} onLoginSuccess={handleLoginSuccess} theme={effectiveTheme} />;
   }
 
   return (
-    <main className={`app-shell ${settings.theme}`}>
+    <main className={`app-shell ${effectiveTheme}`}>
       <TopToolbar
         activitiesViewMode={activitiesViewMode}
         clubName={settings.clubName}
+        onLogout={handleLogout}
         onOpenProfile={() => navigate("profile")}
         onOpenSettings={() => navigate("settings")}
         onQueryChange={setQuery}
         onSelectActivitiesViewMode={handleSelectActivitiesViewMode}
+        onToggleTheme={toggleTheme}
         query={query}
+        theme={effectiveTheme}
         view={view}
       />
 
@@ -273,7 +344,7 @@ export function App() {
           />
         )}
 
-        {view === "activity-register" && (
+        {view === "activity-register" && session.role === "admin" && (
           <ActivityRegisterView
             currentMember={session}
             members={members}
@@ -319,7 +390,7 @@ export function App() {
           />
         )}
 
-        {view === "settings" && (
+        {view === "settings" && session.role === "admin" && (
           <SettingsView
             onSaved={setSettings}
             onSystemMessage={setSystemMessage}
@@ -352,6 +423,7 @@ export function App() {
           <div className="modal modal-wide" onClick={(event) => event.stopPropagation()}>
             <ActivityReportView
               activity={reportModalActivity}
+              currentMember={session}
               members={members}
               onClose={() => setReportModalActivityId(null)}
               onSave={(nextActivity) => {
@@ -370,6 +442,7 @@ export function App() {
           <div className="modal modal-wide" onClick={(event) => event.stopPropagation()}>
             <MonthlyReportDetail
               activities={activities}
+              currentMember={session}
               members={members}
               onClose={() => setMonthlyReportMonth(null)}
               onExported={handleMonthlyExcelExported}

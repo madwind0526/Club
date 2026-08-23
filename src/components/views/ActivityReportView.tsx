@@ -9,6 +9,7 @@ import type { Activity, ExpenseItem, PublicMember, ReceiptItem } from "../../typ
 interface ActivityReportViewProps {
   activity: Activity;
   members: PublicMember[];
+  currentMember: PublicMember;
   onSave: (activity: Activity) => void;
   onSystemMessage: (message: string) => void;
   onClose: () => void;
@@ -17,12 +18,15 @@ interface ActivityReportViewProps {
 type MediaCategory = "Photos" | "Receipts" | "Expenses";
 type MediaField = "photoFileNames" | "receiptFileNames" | "expenseFileNames";
 
+// 사진/영수증/경비 추가·삭제는 admin 전용 - 열람(썸네일 보기, 표 내용 보기)은 회원 누구나 그대로 가능.
 function LineItemTable({
   rows,
-  onChange
+  onChange,
+  readOnly
 }: {
   rows: ReceiptItem[] | ExpenseItem[];
   onChange: (rows: ReceiptItem[]) => void;
+  readOnly: boolean;
 }) {
   const updateRow = (id: string, patch: Partial<ReceiptItem>) => {
     onChange(rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
@@ -45,41 +49,56 @@ function LineItemTable({
             <th>구매 내용</th>
             <th>가격</th>
             <th>비고</th>
-            <th />
+            {!readOnly && <th>삭제</th>}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td>
-                <input onChange={(event) => updateRow(row.id, { date: event.target.value })} type="date" value={row.date} />
-              </td>
-              <td>
-                <input onChange={(event) => updateRow(row.id, { item: event.target.value })} value={row.item} />
-              </td>
-              <td>
-                <input
-                  onChange={(event) => updateRow(row.id, { price: Number(event.target.value) || 0 })}
-                  placeholder="0"
-                  type="number"
-                  value={row.price === 0 ? "" : row.price}
-                />
-              </td>
-              <td>
-                <input onChange={(event) => updateRow(row.id, { note: event.target.value })} value={row.note ?? ""} />
-              </td>
-              <td>
-                <button className="btn btn-ghost btn-sm" onClick={() => removeRow(row.id)} type="button">
-                  삭제
-                </button>
-              </td>
-            </tr>
-          ))}
+          {rows.map((row) =>
+            readOnly ? (
+              <tr key={row.id}>
+                <td>{row.date}</td>
+                <td>{row.item}</td>
+                <td>{row.price.toLocaleString()}</td>
+                <td>{row.note}</td>
+              </tr>
+            ) : (
+              <tr key={row.id}>
+                <td>
+                  <input
+                    onChange={(event) => updateRow(row.id, { date: event.target.value })}
+                    type="date"
+                    value={row.date}
+                  />
+                </td>
+                <td>
+                  <input onChange={(event) => updateRow(row.id, { item: event.target.value })} value={row.item} />
+                </td>
+                <td>
+                  <input
+                    onChange={(event) => updateRow(row.id, { price: Number(event.target.value) || 0 })}
+                    placeholder="0"
+                    type="number"
+                    value={row.price === 0 ? "" : row.price}
+                  />
+                </td>
+                <td>
+                  <input onChange={(event) => updateRow(row.id, { note: event.target.value })} value={row.note ?? ""} />
+                </td>
+                <td>
+                  <button className="icon-btn" onClick={() => removeRow(row.id)} title="삭제" type="button">
+                    <Trash2 size={15} />
+                  </button>
+                </td>
+              </tr>
+            )
+          )}
         </tbody>
       </table>
-      <button className="btn btn-sm" onClick={addRow} style={{ marginTop: 10 }} type="button">
-        + 항목 추가
-      </button>
+      {!readOnly && (
+        <button className="btn btn-sm" onClick={addRow} style={{ marginTop: 10 }} type="button">
+          + 항목 추가
+        </button>
+      )}
     </div>
   );
 }
@@ -91,7 +110,8 @@ function MediaSection({
   isScanning,
   onScan,
   onRemove,
-  onPreview
+  onPreview,
+  readOnly
 }: {
   title: string;
   emptyMessage: string;
@@ -100,14 +120,17 @@ function MediaSection({
   onScan: () => void;
   onRemove: (url: string) => void;
   onPreview: (url: string) => void;
+  readOnly: boolean;
 }) {
   return (
     <>
       <div className="view-header">
         <h2>{title}</h2>
-        <button className="btn btn-sm" disabled={isScanning} onClick={onScan} type="button">
-          {isScanning ? "불러오는 중..." : "폴더에서 불러오기"}
-        </button>
+        {!readOnly && (
+          <button className="btn btn-sm" disabled={isScanning} onClick={onScan} type="button">
+            {isScanning ? "불러오는 중..." : "폴더에서 불러오기"}
+          </button>
+        )}
       </div>
       {files.length === 0 ? (
         <p className="thumbnail-empty">{emptyMessage}</p>
@@ -116,9 +139,11 @@ function MediaSection({
           {files.map((url) => (
             <div className="thumbnail-item" key={url}>
               <img alt="" className="thumbnail" onClick={() => onPreview(url)} src={toDisplayableFileUrl(url)} />
-              <button className="thumbnail-delete" onClick={() => onRemove(url)} title="삭제" type="button">
-                ×
-              </button>
+              {!readOnly && (
+                <button className="thumbnail-delete" onClick={() => onRemove(url)} title="삭제" type="button">
+                  ×
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -127,13 +152,21 @@ function MediaSection({
   );
 }
 
-export function ActivityReportView({ activity, members, onSave, onSystemMessage, onClose }: ActivityReportViewProps) {
+export function ActivityReportView({
+  activity,
+  members,
+  currentMember,
+  onSave,
+  onSystemMessage,
+  onClose
+}: ActivityReportViewProps) {
   const [draft, setDraft] = useState<Activity>(activity);
   const [isScanning, setIsScanning] = useState<MediaCategory | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isAttendeePickerOpen, setIsAttendeePickerOpen] = useState(false);
   const [selectedAttendeeIds, setSelectedAttendeeIds] = useState<string[]>([]);
   const [isFindingPlanFile, setIsFindingPlanFile] = useState(false);
+  const isAdmin = currentMember.role === "admin";
 
   const planFiles = draft.planFilePaths.map((filePath) => ({
     path: filePath,
@@ -143,15 +176,17 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
   // A withdrawn (soft-deleted) member still needs to show up here with their real name - only
   // the 비고 column changes, to "탈퇴". A truly missing record (data from before this existed)
   // falls back to a placeholder rather than silently dropping the row and shrinking 참석 인원.
-  const attendeeRows = draft.attendeeIds.map((id) => {
-    const member = members.find((candidate) => candidate.id === id);
+  const attendeeRows = draft.attendeeIds
+    .map((id) => {
+      const member = members.find((candidate) => candidate.id === id);
 
-    if (!member) {
-      return { id, name: "(알 수 없음)", knoxId: "", note: "탈퇴" };
-    }
+      if (!member) {
+        return { id, name: "(알 수 없음)", knoxId: "", note: "탈퇴" };
+      }
 
-    return { id: member.id, name: member.name, knoxId: member.knoxId, note: member.withdrawn ? "탈퇴" : member.note ?? "" };
-  });
+      return { id: member.id, name: member.name, knoxId: member.knoxId, note: member.withdrawn ? "탈퇴" : member.note ?? "" };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
   const activeMembers = members
     .filter((member) => !member.withdrawn)
@@ -180,6 +215,17 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
 
   const removeAttendee = (memberId: string) => {
     setDraft((current) => ({ ...current, attendeeIds: current.attendeeIds.filter((id) => id !== memberId) }));
+  };
+
+  const isSelfAttending = draft.attendeeIds.includes(currentMember.id);
+
+  const toggleSelfAttendance = () => {
+    setDraft((current) => ({
+      ...current,
+      attendeeIds: isSelfAttending
+        ? current.attendeeIds.filter((id) => id !== currentMember.id)
+        : [...current.attendeeIds, currentMember.id]
+    }));
   };
 
   const removeMediaFile = (field: MediaField, url: string) => {
@@ -276,23 +322,33 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
       <div className="form-grid" style={{ marginBottom: 20 }}>
         <div className="form-field">
           <label htmlFor="report-title">제목</label>
-          <input
-            id="report-title"
-            onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
-            value={draft.title}
-          />
+          {isAdmin ? (
+            <input
+              id="report-title"
+              onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
+              value={draft.title}
+            />
+          ) : (
+            <p id="report-title">{draft.title || "제목 없음"}</p>
+          )}
         </div>
         <div className="form-field">
           <label htmlFor="report-content">활동 내용</label>
-          <textarea
-            id="report-content"
-            onChange={(event) => setDraft((current) => ({ ...current, content: event.target.value }))}
-            value={draft.content}
-          />
+          {isAdmin ? (
+            <textarea
+              id="report-content"
+              onChange={(event) => setDraft((current) => ({ ...current, content: event.target.value }))}
+              value={draft.content}
+            />
+          ) : (
+            <p id="report-content" style={{ whiteSpace: "pre-wrap" }}>
+              {draft.content || "내용이 없습니다."}
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="summary-2x2">
+      <div className="summary-2x2 activity-report-summary">
         <div>
           <div className="summary-label">활동 날짜</div>
           <div className="summary-value">{draft.date}</div>
@@ -303,34 +359,36 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
         </div>
       </div>
 
-      <table className="data-table">
+      <table className="data-table attendee-table">
         <thead>
           <tr>
-            <th>번호</th>
-            <th>이름</th>
-            <th>Knox ID</th>
+            <th className="attendee-col-number">번호</th>
+            <th className="attendee-col-name">이름</th>
+            <th className="attendee-col-knox">Knox ID</th>
             <th>비고</th>
-            <th />
+            {isAdmin && <th className="attendee-col-delete">삭제</th>}
           </tr>
         </thead>
         <tbody>
           {attendeeRows.map((row, index) => (
             <tr key={row.id}>
-              <td>{index + 1}</td>
+              <td className="attendee-col-number">{index + 1}</td>
               <td>{row.name}</td>
               <td>{row.knoxId}</td>
               <td>{row.note}</td>
-              <td>
-                <button className="icon-btn" onClick={() => removeAttendee(row.id)} title="참석자 삭제" type="button">
-                  <Trash2 size={15} />
-                </button>
-              </td>
+              {isAdmin && (
+                <td className="attendee-col-delete">
+                  <button className="icon-btn" onClick={() => removeAttendee(row.id)} title="참석자 삭제" type="button">
+                    <Trash2 size={15} />
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={4} className="data-table-footer">
+            <td colSpan={isAdmin ? 4 : 3} className="data-table-footer">
               총인원
             </td>
             <td className="data-table-footer">{attendeeRows.length}명</td>
@@ -338,12 +396,25 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
         </tfoot>
       </table>
 
-      <div className="attendee-actions">
-        <button className="btn btn-sm" disabled={activeMembers.length === 0} onClick={openAttendeePicker} type="button">
-          참석자 변경
-        </button>
-        <span>현재 {attendeeRows.length}명</span>
-      </div>
+      {isAdmin ? (
+        <div className="attendee-actions">
+          <button className="btn btn-sm" disabled={activeMembers.length === 0} onClick={openAttendeePicker} type="button">
+            참석자 변경
+          </button>
+          <span>현재 {attendeeRows.length}명</span>
+        </div>
+      ) : (
+        <div className="attendee-actions">
+          <button
+            className={isSelfAttending ? "btn btn-danger btn-sm" : "btn btn-primary btn-sm"}
+            onClick={toggleSelfAttendance}
+            type="button"
+          >
+            {isSelfAttending ? "참가 취소" : "참가 신청"}
+          </button>
+          <span>본인 참석 여부만 변경할 수 있습니다.</span>
+        </div>
+      )}
 
       <div className="card" style={{ marginTop: 24 }}>
         <div className="view-header">
@@ -356,6 +427,7 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
           onRemove={handleRemovePlanFile}
           onSystemMessage={onSystemMessage}
           planFiles={planFiles}
+          readOnly={!isAdmin}
         />
       </div>
 
@@ -367,6 +439,7 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
           onPreview={setPreviewImageUrl}
           onRemove={(url) => removeMediaFile("photoFileNames", url)}
           onScan={() => handleScan("Photos")}
+          readOnly={!isAdmin}
           title="사진"
         />
       </div>
@@ -379,10 +452,12 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
           onPreview={setPreviewImageUrl}
           onRemove={(url) => removeMediaFile("receiptFileNames", url)}
           onScan={() => handleScan("Receipts")}
+          readOnly={!isAdmin}
           title="영수증"
         />
         <LineItemTable
           onChange={(rows) => setDraft((current) => ({ ...current, receipts: rows as ReceiptItem[] }))}
+          readOnly={!isAdmin}
           rows={draft.receipts}
         />
       </div>
@@ -395,10 +470,12 @@ export function ActivityReportView({ activity, members, onSave, onSystemMessage,
           onPreview={setPreviewImageUrl}
           onRemove={(url) => removeMediaFile("expenseFileNames", url)}
           onScan={() => handleScan("Expenses")}
+          readOnly={!isAdmin}
           title="경비"
         />
         <LineItemTable
           onChange={(rows) => setDraft((current) => ({ ...current, expenses: rows as ExpenseItem[] }))}
+          readOnly={!isAdmin}
           rows={draft.expenses}
         />
       </div>

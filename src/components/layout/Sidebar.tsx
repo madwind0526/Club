@@ -15,7 +15,7 @@ const mainNavItems: Array<{ view: ViewMode; label: string; icon: ReactNode }> = 
 ];
 
 const bottomNavItems: Array<{ view: ViewMode; label: string; icon: ReactNode; adminOnly?: boolean }> = [
-  { view: "activity-register", label: "활동 등록", icon: <FilePlus2 size={16} /> },
+  { view: "activity-register", label: "활동 등록", icon: <FilePlus2 size={16} />, adminOnly: true },
   { view: "weekly-report", label: "주간 정리", icon: <ClipboardList size={16} />, adminOnly: true },
   { view: "monthly-report", label: "월간 정리", icon: <ClipboardList size={16} /> },
   { view: "members", label: "회원 관리", icon: <Users size={16} /> }
@@ -40,15 +40,21 @@ export function Sidebar({ view, isAdmin, onNavigate }: SidebarProps) {
 
       <nav className="sidebar-bottom">
         {bottomNavItems.map((item) => {
-          const disabled = Boolean(item.adminOnly) && !isAdmin;
+          const restricted = Boolean(item.adminOnly) && !isAdmin;
+          const className = [
+            "sidebar-bottom-button",
+            view === item.view ? "active" : "",
+            restricted ? "restricted" : ""
+          ]
+            .filter(Boolean)
+            .join(" ");
 
           return (
             <button
-              className={view === item.view ? "sidebar-bottom-button active" : "sidebar-bottom-button"}
-              disabled={disabled}
+              className={className}
               key={item.view}
               onClick={() => onNavigate(item.view)}
-              title={disabled ? "admin 전용 메뉴입니다." : undefined}
+              title={restricted ? "admin 전용 메뉴입니다." : undefined}
               type="button"
             >
               {item.icon}

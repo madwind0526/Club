@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("clubApp", {
   readAssetsMembersFile: (format: "json" | "txt") => ipcRenderer.invoke("assets:readMembersFile", format),
 
   login: (knoxId: string, password: string) => ipcRenderer.invoke("auth:login", knoxId, password),
+  logout: () => ipcRenderer.invoke("auth:logout"),
 
   listActivities: () => ipcRenderer.invoke("activities:list"),
   saveActivities: (activities: unknown) => ipcRenderer.invoke("activities:save", activities),

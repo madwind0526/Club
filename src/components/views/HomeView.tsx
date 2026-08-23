@@ -11,7 +11,11 @@ function ClubLogo({ clubName, logoPath }: { clubName: string; logoPath: string }
     return <div className="club-logo club-logo-placeholder">No Logo</div>;
   }
 
-  return <img alt={clubName} className="club-logo" onError={() => setFailed(true)} src={toDisplayableFileUrl(logoPath)} />;
+  return (
+    <div className="club-logo">
+      <img alt={clubName} className="club-logo-image" onError={() => setFailed(true)} src={toDisplayableFileUrl(logoPath)} />
+    </div>
+  );
 }
 
 interface HomeViewProps {

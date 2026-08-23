@@ -15,6 +15,7 @@ interface ClubApp {
   readAssetsMembersFile: (format: "json" | "txt") => Promise<string | null>;
 
   login: (knoxId: string, password: string) => Promise<LoginResult>;
+  logout: () => Promise<{ ok: boolean }>;
 
   listActivities: () => Promise<Activity[]>;
   saveActivities: (activities: Activity[]) => Promise<Activity[]>;

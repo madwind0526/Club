@@ -5,6 +5,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildMonthlyReportWorkbook } from "../server/excelExport.js";
 import { resolveAppPath, resolveCategoryFolder, resolvePlanFolder } from "../server/paths.js";
+import { isActivityListStructuralChange, isEditBeyondSelfAttendanceToggle, sanitizeSelfMemberEdit } from "../server/auth.js";
 
 // The renderer is loaded from an http(s) origin (Vite dev server / packaged app origin), and
 // Chromium refuses to load file:// as a subresource from a non-file:// page. Local files (club
@@ -81,6 +82,48 @@ function toPublicMember(member: StoredMember) {
   return rest;
 }
 
+// The renderer is a single logged-in user at a time, so a module-level variable is enough to
+// track "who's currently logged in" for authorizing IPC calls - this guards against a compromised
+// or dev-tools-driven renderer script calling window.clubApp directly, bypassing the React UI's
+// own role checks. Kept in sync with the same-shaped session cookie in vite.config.mts.
+let currentSessionMemberId: string | null = null;
+
+async function getSessionMember(): Promise<StoredMember | null> {
+  if (!currentSessionMemberId) {
+    return null;
+  }
+
+  const members = await readJson<StoredMember[]>("members.json", []);
+  const member = members.find((candidate) => candidate.id === currentSessionMemberId);
+
+  if (!member || member.withdrawn) {
+    currentSessionMemberId = null;
+    return null;
+  }
+
+  return member;
+}
+
+async function requireMember(): Promise<StoredMember> {
+  const member = await getSessionMember();
+
+  if (!member) {
+    throw new Error("로그인이 필요합니다.");
+  }
+
+  return member;
+}
+
+async function requireAdmin(): Promise<StoredMember> {
+  const member = await requireMember();
+
+  if (member.role !== "admin") {
+    throw new Error("권한이 없습니다. admin만 접근할 수 있습니다.");
+  }
+
+  return member;
+}
+
 async function seedInitialAdmin() {
   const members = await readJson<StoredMember[]>("members.json", []);
 
@@ -108,6 +151,7 @@ async function seedInitialAdmin() {
 ipcMain.handle("settings:load", () => readJson("app-settings.json", null));
 
 ipcMain.handle("settings:save", async (_event, settings: unknown) => {
+  await requireAdmin();
   await writeJson("app-settings.json", settings);
   return true;
 });
@@ -120,6 +164,7 @@ ipcMain.handle("members:list", async () => {
 ipcMain.handle(
   "members:add",
   async (_event, input: Omit<StoredMember, "id" | "passwordHash" | "withdrawn"> & { password: string }) => {
+    await requireAdmin();
     const members = await readJson<StoredMember[]>("members.json", []);
     const { password, ...rest } = input;
     const member: StoredMember = {
@@ -138,11 +183,24 @@ ipcMain.handle(
 ipcMain.handle(
   "members:update",
   async (_event, input: Omit<StoredMember, "passwordHash" | "withdrawn"> & { newPassword?: string }) => {
+    const requester = await requireMember();
     const { newPassword, ...rest } = input;
+
+    if (requester.role !== "admin" && rest.id !== requester.id) {
+      throw new Error("권한이 없습니다. 본인 정보만 수정할 수 있습니다.");
+    }
+
     const members = await readJson<StoredMember[]>("members.json", []);
+    const existing = members.find((member) => member.id === rest.id);
+
+    if (!existing) {
+      throw new Error("회원을 찾을 수 없습니다.");
+    }
+
+    const safeRest = requester.role === "admin" ? rest : sanitizeSelfMemberEdit(existing, rest);
     const nextMembers = members.map((member) =>
-      member.id === rest.id
-        ? { ...member, ...rest, ...(newPassword ? { passwordHash: hashPassword(newPassword) } : {}) }
+      member.id === safeRest.id
+        ? { ...member, ...safeRest, ...(newPassword ? { passwordHash: hashPassword(newPassword) } : {}) }
         : member
     );
 
@@ -156,6 +214,7 @@ ipcMain.handle(
 // withdrawn members from the roster; attendee tables elsewhere still resolve their name and flag
 // them "탈퇴" in the 비고 column.
 ipcMain.handle("members:remove", async (_event, id: string) => {
+  await requireAdmin();
   const members = await readJson<StoredMember[]>("members.json", []);
   const nextMembers = members.map((member) => (member.id === id ? { ...member, withdrawn: true } : member));
 
@@ -171,6 +230,7 @@ ipcMain.handle(
     mode: "append" | "replace" = "append",
     initialPassword?: string
   ) => {
+    await requireAdmin();
     const existing = mode === "replace" ? [] : await readJson<StoredMember[]>("members.json", []);
     // Skip rows whose Knox ID already exists (in the current roster, or earlier in this same
     // batch) - Knox ID is how login and every other lookup identifies a member.
@@ -201,6 +261,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle("assets:readMembersFile", async (_event, format: "json" | "txt") => {
+  await requireAdmin();
   const settings = await readJson<{ memberImportFilePath?: string } | null>("app-settings.json", null);
   const fileName = format === "json" ? "members.json" : "members.txt";
   const filePath = settings?.memberImportFilePath
@@ -226,7 +287,13 @@ ipcMain.handle("auth:login", async (_event, knoxId: string, password: string) =>
     return { ok: false, error: "탈퇴한 회원입니다." };
   }
 
+  currentSessionMemberId = found.id;
   return { ok: true, member: toPublicMember(found) };
+});
+
+ipcMain.handle("auth:logout", () => {
+  currentSessionMemberId = null;
+  return { ok: true };
 });
 
 ipcMain.handle("shell:openPath", async (_event, filePath: string) => {
@@ -236,6 +303,7 @@ ipcMain.handle("shell:openPath", async (_event, filePath: string) => {
 });
 
 ipcMain.handle("export:monthlyExcel", async (event, yyyyMm: string) => {
+  await requireAdmin();
   const win = BrowserWindow.fromWebContents(event.sender);
   const dialogOptions = {
     defaultPath: `club-management-${yyyyMm}-monthly-report.xlsx`,
@@ -259,7 +327,38 @@ ipcMain.handle("export:monthlyExcel", async (event, yyyyMm: string) => {
 
 ipcMain.handle("activities:list", () => readJson("activities.json", []));
 
-ipcMain.handle("activities:save", async (_event, activities: unknown) => {
+interface ActivityForAuthCheck {
+  id: string;
+  title: unknown;
+  content: unknown;
+  date: unknown;
+  weekOfMonth: unknown;
+  planFilePaths: unknown;
+  attendeeIds: string[];
+  photoFileNames: unknown;
+  receiptFileNames: unknown;
+  expenseFileNames: unknown;
+  receipts: unknown;
+  expenses: unknown;
+}
+
+ipcMain.handle("activities:save", async (_event, activities: ActivityForAuthCheck[]) => {
+  const requester = await requireMember();
+  const current = await readJson<ActivityForAuthCheck[]>("activities.json", []);
+
+  if (requester.role !== "admin") {
+    // 활동 등록/삭제(구조적 변경)는 admin만. 이미 있는 활동에 대해서도 일반 회원이 바꿀 수 있는 건
+    // 본인 참석 여부 하나뿐 - 나머지(제목/내용/계획서/사진/영수증/경비, 다른 사람 참석 여부)는
+    // 전부 admin만 수정 가능하다 (열람은 그대로 가능).
+    if (isActivityListStructuralChange(current, activities)) {
+      throw new Error("권한이 없습니다. admin만 활동을 등록/삭제할 수 있습니다.");
+    }
+
+    if (isEditBeyondSelfAttendanceToggle(current, activities, requester.id)) {
+      throw new Error("권한이 없습니다. 본인 참석 여부 외의 항목은 admin만 수정할 수 있습니다.");
+    }
+  }
+
   await writeJson("activities.json", activities);
   return activities;
 });
@@ -267,6 +366,7 @@ ipcMain.handle("activities:save", async (_event, activities: unknown) => {
 ipcMain.handle("board:list", () => readJson("board.json", []));
 
 ipcMain.handle("board:save", async (_event, posts: unknown) => {
+  await requireMember();
   await writeJson("board.json", posts);
   return posts;
 });

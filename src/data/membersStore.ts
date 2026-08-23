@@ -1,5 +1,15 @@
 import type { MemberGrade, MemberRole, PublicMember } from "../types/domain";
 
+async function parseJsonOrThrow<T>(response: Response, fallbackError: string): Promise<T> {
+  const body = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error((body && typeof body === "object" && "error" in body && body.error) || fallbackError);
+  }
+
+  return body as T;
+}
+
 export interface MemberDraft {
   name: string;
   knoxId: string;
@@ -33,7 +43,7 @@ export async function addMember(draft: MemberDraft, password: string): Promise<P
     body: JSON.stringify(payload)
   });
 
-  return response.json();
+  return parseJsonOrThrow(response, "회원 추가에 실패했습니다.");
 }
 
 // withdrawn isn't editable through this form - it's only ever changed by removeMember() (soft
@@ -51,7 +61,7 @@ export async function updateMember(
     body: JSON.stringify(member)
   });
 
-  return response.json();
+  return parseJsonOrThrow(response, "회원 정보 수정에 실패했습니다.");
 }
 
 export async function removeMember(id: string): Promise<PublicMember[]> {
@@ -60,7 +70,7 @@ export async function removeMember(id: string): Promise<PublicMember[]> {
   }
 
   const response = await fetch(`/api/members?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-  return response.json();
+  return parseJsonOrThrow(response, "회원 삭제에 실패했습니다.");
 }
 
 // Newly imported members get `initialPassword` (applies to every row, admin included) when set,
@@ -81,7 +91,7 @@ export async function importMembers(
     body: JSON.stringify({ rows, mode, initialPassword })
   });
 
-  return response.json();
+  return parseJsonOrThrow(response, "회원 가져오기에 실패했습니다.");
 }
 
 // Reads members.json/members.txt bundled under assets/, used by the "자동불러오기" button in

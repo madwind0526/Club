@@ -1,17 +1,21 @@
-import { Image, LayoutGrid, List, Search, Settings, UserRound } from "lucide-react";
+import { Image, LayoutGrid, List, Moon, Search, Settings, Sun, UserRound } from "lucide-react";
 import type { ActivitiesViewMode, ViewMode } from "../../App";
+import type { ThemeMode } from "../../types/domain";
 
-const BUILD_VERSION = "Build v0.1.0";
+const BUILD_VERSION = "Build v0.2.0";
 
 interface TopToolbarProps {
   clubName: string;
   view: ViewMode;
   activitiesViewMode: ActivitiesViewMode;
   query: string;
+  theme: ThemeMode;
   onQueryChange: (query: string) => void;
   onSelectActivitiesViewMode: (mode: ActivitiesViewMode) => void;
   onOpenSettings: () => void;
   onOpenProfile: () => void;
+  onToggleTheme: () => void;
+  onLogout: () => void;
 }
 
 export function TopToolbar({
@@ -19,17 +23,20 @@ export function TopToolbar({
   view,
   activitiesViewMode,
   query,
+  theme,
   onQueryChange,
   onSelectActivitiesViewMode,
   onOpenSettings,
-  onOpenProfile
+  onOpenProfile,
+  onToggleTheme,
+  onLogout
 }: TopToolbarProps) {
   return (
     <header className="top-toolbar">
-      <div className="app-title">
+      <button className="app-title" onClick={onLogout} title="로그아웃" type="button">
         <strong>{clubName}</strong>
         <span>{BUILD_VERSION}</span>
-      </div>
+      </button>
 
       <label className="toolbar-search">
         <Search size={16} />
@@ -72,6 +79,14 @@ export function TopToolbar({
           type="button"
         >
           <Settings size={18} />
+        </button>
+        <button
+          className="icon-button"
+          onClick={onToggleTheme}
+          title={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
+          type="button"
+        >
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>
         <button
           className={view === "profile" ? "icon-button active" : "icon-button"}

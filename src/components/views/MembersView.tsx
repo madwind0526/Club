@@ -1,3 +1,4 @@
+import { Pencil, Trash2 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import {
   addMember,
@@ -90,17 +91,21 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
       return;
     }
 
-    if (editingId) {
-      const nextMembers = await updateMember({ ...draft, id: editingId });
-      onMembersChange(nextMembers);
-      onSystemMessage(`${draft.name} 회원 정보를 수정했습니다.`);
-    } else {
-      const nextMembers = await addMember(draft, password);
-      onMembersChange(nextMembers);
-      onSystemMessage(`${draft.name} 회원을 추가했습니다.`);
-    }
+    try {
+      if (editingId) {
+        const nextMembers = await updateMember({ ...draft, id: editingId });
+        onMembersChange(nextMembers);
+        onSystemMessage(`${draft.name} 회원 정보를 수정했습니다.`);
+      } else {
+        const nextMembers = await addMember(draft, password);
+        onMembersChange(nextMembers);
+        onSystemMessage(`${draft.name} 회원을 추가했습니다.`);
+      }
 
-    setIsFormOpen(false);
+      setIsFormOpen(false);
+    } catch (error) {
+      onSystemMessage(error instanceof Error ? error.message : "회원 정보 저장에 실패했습니다.");
+    }
   };
 
   const handleDelete = async () => {
@@ -108,10 +113,14 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
       return;
     }
 
-    const nextMembers = await removeMember(deleteCandidate.id);
-    onMembersChange(nextMembers);
-    onSystemMessage(`${deleteCandidate.name} 회원을 삭제했습니다.`);
-    setDeleteCandidate(null);
+    try {
+      const nextMembers = await removeMember(deleteCandidate.id);
+      onMembersChange(nextMembers);
+      onSystemMessage(`${deleteCandidate.name} 회원을 삭제했습니다.`);
+      setDeleteCandidate(null);
+    } catch (error) {
+      onSystemMessage(error instanceof Error ? error.message : "회원 삭제에 실패했습니다.");
+    }
   };
 
   const handleExport = () => {
@@ -125,20 +134,24 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
   };
 
   const runImport = async (rows: MemberDraft[], sourceLabel: string) => {
-    const beforeCount = members.length;
-    const nextMembers = await importMembers(rows, settings.memberImportMode, importPassword.trim());
-    const modeLabel = settings.memberImportMode === "replace" ? "교체" : "추가";
-    // Knox ID duplicates are silently skipped server-side - diff the counts to report how many.
-    const addedCount = settings.memberImportMode === "replace" ? nextMembers.length : nextMembers.length - beforeCount;
-    const skippedCount = rows.length - addedCount;
-    const passwordLabel = importPassword.trim() ? "입력한 초기 비밀번호" : "Knox ID";
+    try {
+      const beforeCount = members.length;
+      const nextMembers = await importMembers(rows, settings.memberImportMode, importPassword.trim());
+      const modeLabel = settings.memberImportMode === "replace" ? "교체" : "추가";
+      // Knox ID duplicates are silently skipped server-side - diff the counts to report how many.
+      const addedCount = settings.memberImportMode === "replace" ? nextMembers.length : nextMembers.length - beforeCount;
+      const skippedCount = rows.length - addedCount;
+      const passwordLabel = importPassword.trim() ? "입력한 초기 비밀번호" : "Knox ID";
 
-    onMembersChange(nextMembers);
-    onSystemMessage(
-      skippedCount > 0
-        ? `${sourceLabel}에서 ${addedCount}명을 ${modeLabel}했습니다. (Knox ID 중복 ${skippedCount}명 제외, 초기 비밀번호: ${passwordLabel})`
-        : `${sourceLabel}에서 ${addedCount}명을 불러와 ${modeLabel}했습니다. (초기 비밀번호: ${passwordLabel})`
-    );
+      onMembersChange(nextMembers);
+      onSystemMessage(
+        skippedCount > 0
+          ? `${sourceLabel}에서 ${addedCount}명을 ${modeLabel}했습니다. (Knox ID 중복 ${skippedCount}명 제외, 초기 비밀번호: ${passwordLabel})`
+          : `${sourceLabel}에서 ${addedCount}명을 불러와 ${modeLabel}했습니다. (초기 비밀번호: ${passwordLabel})`
+      );
+    } catch (error) {
+      onSystemMessage(error instanceof Error ? error.message : "회원 가져오기에 실패했습니다.");
+    }
   };
 
   const applyImportedRows = async (rows: MemberDraft[], sourceLabel: string) => {
@@ -254,7 +267,8 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
             <col className="members-col-grade" />
             <col className="members-col-role" />
             <col className="members-col-note" />
-            {isAdmin && <col className="members-col-actions" />}
+            {isAdmin && <col className="members-col-edit" />}
+            {isAdmin && <col className="members-col-delete" />}
           </colgroup>
           <thead>
             <tr>
@@ -266,7 +280,8 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
               <th className="members-table-center-cell">회원 등급</th>
               <th className="members-table-center-cell">역할</th>
               <th>비고</th>
-              {isAdmin && <th />}
+              {isAdmin && <th className="members-table-center-cell">수정</th>}
+              {isAdmin && <th className="members-table-center-cell">삭제</th>}
             </tr>
           </thead>
           <tbody>
@@ -281,15 +296,17 @@ export function MembersView({ members, currentMember, settings, onMembersChange,
                 <td className="members-table-center-cell">{member.role}</td>
                 <td>{member.note}</td>
                 {isAdmin && (
-                  <td>
-                    <div className="members-table-actions">
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEditForm(member)} type="button">
-                        수정
-                      </button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setDeleteCandidate(member)} type="button">
-                        삭제
-                      </button>
-                    </div>
+                  <td className="members-table-center-cell">
+                    <button className="icon-btn" onClick={() => openEditForm(member)} title="수정" type="button">
+                      <Pencil size={15} />
+                    </button>
+                  </td>
+                )}
+                {isAdmin && (
+                  <td className="members-table-center-cell">
+                    <button className="icon-btn" onClick={() => setDeleteCandidate(member)} title="삭제" type="button">
+                      <Trash2 size={15} />
+                    </button>
                   </td>
                 )}
               </tr>

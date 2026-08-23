@@ -20,7 +20,13 @@ export async function saveActivities(activities: Activity[]): Promise<Activity[]
     body: JSON.stringify(activities)
   });
 
-  return response.json();
+  const body = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error((body && typeof body === "object" && "error" in body && body.error) || "활동 데이터를 저장하지 못했습니다.");
+  }
+
+  return body as Activity[];
 }
 
 // Week-of-month counted from the first day of the activity's month (1-indexed).
@@ -55,12 +61,21 @@ export function getActivityStatus(dateIso: string, today = new Date()): Activity
 // generated workbook streams back as a normal file download instead.
 export async function exportMonthlyReportExcel(yyyyMm: string): Promise<{ ok: boolean; path?: string; error?: string }> {
   if (window.clubApp?.exportMonthlyExcel) {
-    return window.clubApp.exportMonthlyExcel(yyyyMm);
+    try {
+      return await window.clubApp.exportMonthlyExcel(yyyyMm);
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : "엑셀 파일 생성에 실패했습니다." };
+    }
   }
 
   const response = await fetch(`/api/export-monthly-excel?yyyyMm=${encodeURIComponent(yyyyMm)}`);
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      const body = await response.json().catch(() => null);
+      return { ok: false, error: body?.error ?? "권한이 없습니다." };
+    }
+
     return { ok: false, error: "엑셀 파일 생성에 실패했습니다." };
   }
 
