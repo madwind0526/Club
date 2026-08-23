@@ -16,6 +16,7 @@ interface ClubApp {
 
   login: (knoxId: string, password: string) => Promise<LoginResult>;
   logout: () => Promise<{ ok: boolean }>;
+  getSession: () => Promise<{ ok: boolean; member?: PublicMember }>;
 
   listActivities: () => Promise<Activity[]>;
   saveActivities: (activities: Activity[]) => Promise<Activity[]>;

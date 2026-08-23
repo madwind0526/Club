@@ -48,12 +48,20 @@ export function formatYyMm(dateIso: string): string {
   return dateIso.slice(2, 7);
 }
 
+export function formatLocalDateIso(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export type ActivityStatus = "완료" | "예정";
 
 // An activity dated today counts as completed - it is either already underway or over by the
 // time anyone is looking at the report screen for it.
 export function getActivityStatus(dateIso: string, today = new Date()): ActivityStatus {
-  const todayIso = today.toISOString().slice(0, 10);
+  const todayIso = formatLocalDateIso(today);
   return dateIso <= todayIso ? "완료" : "예정";
 }
 

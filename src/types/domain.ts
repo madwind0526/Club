@@ -85,7 +85,6 @@ export type MemberImportFormat = "json" | "txt";
 export type MemberImportMode = "append" | "replace";
 
 export interface AppSettings {
-  theme: ThemeMode;
   clubName: string;
   clubLogoPath: string;
   clubIntro: string;

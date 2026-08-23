@@ -5,7 +5,13 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildMonthlyReportWorkbook } from "../server/excelExport.js";
 import { resolveAppPath, resolveCategoryFolder, resolvePlanFolder } from "../server/paths.js";
-import { isActivityListStructuralChange, isEditBeyondSelfAttendanceToggle, sanitizeSelfMemberEdit } from "../server/auth.js";
+import {
+  isActivityListStructuralChange,
+  isBoardEditBeyondMemberPermissions,
+  isBoardPostListForPermissionCheck,
+  isEditBeyondSelfAttendanceToggle,
+  sanitizeSelfMemberEdit
+} from "../server/auth.js";
 
 // The renderer is loaded from an http(s) origin (Vite dev server / packaged app origin), and
 // Chromium refuses to load file:// as a subresource from a non-file:// page. Local files (club
@@ -36,6 +42,23 @@ interface StoredMember {
   role: string;
   note?: string;
   withdrawn: boolean;
+}
+
+interface BoardPostForAuthCheck {
+  id: string;
+  category: unknown;
+  title: unknown;
+  content: unknown;
+  authorId: string;
+  createdAt: unknown;
+  pinned: unknown;
+  comments: Array<{
+    id: string;
+    authorId: string;
+    content: unknown;
+    createdAt: unknown;
+    parentCommentId?: string;
+  }>;
 }
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]);
@@ -157,6 +180,7 @@ ipcMain.handle("settings:save", async (_event, settings: unknown) => {
 });
 
 ipcMain.handle("members:list", async () => {
+  await requireMember();
   const members = await readJson<StoredMember[]>("members.json", []);
   return members.map(toPublicMember);
 });
@@ -296,8 +320,21 @@ ipcMain.handle("auth:logout", () => {
   return { ok: true };
 });
 
+ipcMain.handle("auth:session", async () => {
+  const member = await getSessionMember();
+  return member ? { ok: true, member: toPublicMember(member) } : { ok: false };
+});
+
 ipcMain.handle("shell:openPath", async (_event, filePath: string) => {
-  const result = await shell.openPath(resolveAppPath(filePath));
+  await requireMember();
+  const settings = await readJson<FolderSettings | null>("app-settings.json", null);
+  const resolvedPath = resolveAppPath(filePath);
+
+  if (!isAllowedLocalFilePath(resolvedPath, settings) && !isMonthlyExcelReportPath(resolvedPath)) {
+    return { ok: false, error: "열 수 없는 파일 경로입니다." };
+  }
+
+  const result = await shell.openPath(resolvedPath);
 
   return result === "" ? { ok: true } : { ok: false, error: result };
 });
@@ -325,7 +362,10 @@ ipcMain.handle("export:monthlyExcel", async (event, yyyyMm: string) => {
   }
 });
 
-ipcMain.handle("activities:list", () => readJson("activities.json", []));
+ipcMain.handle("activities:list", async () => {
+  await requireMember();
+  return readJson("activities.json", []);
+});
 
 interface ActivityForAuthCheck {
   id: string;
@@ -363,10 +403,23 @@ ipcMain.handle("activities:save", async (_event, activities: ActivityForAuthChec
   return activities;
 });
 
-ipcMain.handle("board:list", () => readJson("board.json", []));
+ipcMain.handle("board:list", async () => {
+  await requireMember();
+  return readJson("board.json", []);
+});
 
 ipcMain.handle("board:save", async (_event, posts: unknown) => {
-  await requireMember();
+  const requester = await requireMember();
+  const current = await readJson<BoardPostForAuthCheck[]>("board.json", []);
+
+  if (!isBoardPostListForPermissionCheck(posts)) {
+    throw new Error("게시글 데이터 형식이 올바르지 않습니다.");
+  }
+
+  if (requester.role !== "admin" && isBoardEditBeyondMemberPermissions(current, posts, requester.id)) {
+    throw new Error("권한이 없습니다. 본인 게시글 삭제와 댓글 작성만 가능합니다.");
+  }
+
   await writeJson("board.json", posts);
   return posts;
 });
@@ -408,11 +461,52 @@ type FolderSettings = {
   receiptsFolder?: string;
   expensesFolder?: string;
   planFolder?: string;
+  clubLogoPath?: string;
 };
+
+const MEDIA_CATEGORIES = ["Photos", "Receipts", "Expenses"] as const;
+
+function isValidMediaCategory(category: string): category is (typeof MEDIA_CATEGORIES)[number] {
+  return MEDIA_CATEGORIES.includes(category as (typeof MEDIA_CATEGORIES)[number]);
+}
+
+function isPathWithinRoot(filePath: string, root: string): boolean {
+  const relativePath = path.relative(root, filePath);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+}
+
+function getAllowedMediaRoots(settings: FolderSettings | null): string[] {
+  if (!settings) {
+    return [];
+  }
+
+  return MEDIA_CATEGORIES.map((category) => resolveCategoryFolder(settings, category))
+    .concat(resolvePlanFolder(settings))
+    .filter((folder): folder is string => Boolean(folder))
+    .map((folder) => resolveAppPath(folder));
+}
+
+function isAllowedLocalFilePath(filePath: string, settings: FolderSettings | null): boolean {
+  const roots = getAllowedMediaRoots(settings);
+  const isWithinMediaRoot = roots.some((root) => isPathWithinRoot(filePath, root));
+  const isLogoFile = Boolean(settings?.clubLogoPath) && filePath === resolveAppPath(settings!.clubLogoPath!);
+
+  return isWithinMediaRoot || isLogoFile;
+}
+
+function isMonthlyExcelReportPath(filePath: string): boolean {
+  return /^club-management-\d{4}-\d{2}-monthly-report\.xlsx$/i.test(path.basename(filePath));
+}
 
 ipcMain.handle(
   "media:scanFolder",
   async (_event, category: "Photos" | "Receipts" | "Expenses", yyyyMm: string, week: number) => {
+    await requireMember();
+
+    if (!isValidMediaCategory(category)) {
+      return { folder: "", files: [] };
+    }
+
     const settings = await readJson<FolderSettings | null>("app-settings.json", null);
     const categoryRoot = settings ? resolveCategoryFolder(settings, category) : null;
 
@@ -431,6 +525,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle("media:findPlanFiles", async (_event, yyyyMm: string, week: number) => {
+  await requireMember();
   const settings = await readJson<FolderSettings | null>("app-settings.json", null);
   const folder = settings ? resolvePlanFolder(settings) : null;
 
@@ -452,6 +547,7 @@ ipcMain.handle("media:findPlanFiles", async (_event, yyyyMm: string, week: numbe
 });
 
 ipcMain.handle("media:ensureFolders", async (_event, yyyyMm: string, week: number) => {
+  await requireMember();
   const settings = await readJson<FolderSettings | null>("app-settings.json", null);
 
   if (!settings) {
@@ -496,11 +592,23 @@ const createWindow = () => {
 };
 
 void app.whenReady().then(async () => {
-  protocol.handle(CLUB_MEDIA_SCHEME, (request) => {
+  protocol.handle(CLUB_MEDIA_SCHEME, async (request) => {
+    const member = await getSessionMember();
+
+    if (!member) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
     const url = new URL(request.url);
     const filePath = decodeURIComponent(url.pathname.replace(/^\//, ""));
+    const resolvedPath = resolveAppPath(filePath);
+    const settings = await readJson<FolderSettings | null>("app-settings.json", null);
 
-    return net.fetch(pathToFileURL(resolveAppPath(filePath)).href);
+    if (!isAllowedLocalFilePath(resolvedPath, settings)) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    return net.fetch(pathToFileURL(resolvedPath).href);
   });
 
   await seedInitialAdmin();

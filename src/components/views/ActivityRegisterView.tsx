@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { computeWeekOfMonth, formatYyyyMm } from "../../data/activitiesStore";
+import { computeWeekOfMonth, formatLocalDateIso, formatYyyyMm } from "../../data/activitiesStore";
 import { ensureMediaFolders, findPlanFiles, pickFile } from "../../data/mediaStore";
 import { PlanFileControls } from "./PlanFileControls";
 import type { Activity, PublicMember } from "../../types/domain";
@@ -11,7 +11,7 @@ interface ActivityRegisterViewProps {
   onSystemMessage: (message: string) => void;
 }
 
-const today = new Date().toISOString().slice(0, 10);
+const today = formatLocalDateIso();
 
 export function ActivityRegisterView({ currentMember, members, onCreate, onSystemMessage }: ActivityRegisterViewProps) {
   const [title, setTitle] = useState("");

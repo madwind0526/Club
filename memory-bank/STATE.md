@@ -2,10 +2,10 @@
 
 ## Current Wave
 
-- **Wave:** 25
+- **Wave:** 27
 - **Status:** Ready
 - **Cache Status:** CLEAN
-- **Last Checkpoint:** 월간 정리 Report 컬럼 center 정렬 복구 / npm run build 통과
+- **Last Checkpoint:** Settings 화면 공유 테마 설정 제거 / npm run build 통과
 
 ## Wave History
 
@@ -36,6 +36,8 @@
 | 23 | 월간 정리 Report 컬럼 폭/배치 보정 | Done |
 | 24 | 월간 정리 Report 컬럼 left 정렬 변경 | Done |
 | 25 | 월간 정리 Report 컬럼 center 정렬 복구 | Done |
+| 26 | code review findings 수정: 활동/게시판 서버 권한 검증, Electron 세션/미디어 경로 보강, 로컬 날짜 계산 | Done |
+| 27 | Settings 화면의 공유 테마 설정 제거 및 AppSettings theme 필드 제외 | Done |
 
 ## Session Notes
 

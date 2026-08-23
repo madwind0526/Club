@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld("clubApp", {
 
   login: (knoxId: string, password: string) => ipcRenderer.invoke("auth:login", knoxId, password),
   logout: () => ipcRenderer.invoke("auth:logout"),
+  getSession: () => ipcRenderer.invoke("auth:session"),
 
   listActivities: () => ipcRenderer.invoke("activities:list"),
   saveActivities: (activities: unknown) => ipcRenderer.invoke("activities:save", activities),

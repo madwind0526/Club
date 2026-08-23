@@ -58,9 +58,7 @@ function saveMonthlyExcelReports(paths: Record<string, string>) {
   }
 }
 
-// Settings' theme control is admin-only (it writes the shared app-settings.json), but any
-// member should still be able to flip light/dark for their own view. This is a per-browser
-// override layered on top of the admin-set default, never sent to the server.
+// Theme is a per-browser preference controlled from the toolbar, never part of shared settings.
 const THEME_OVERRIDE_KEY = "club-management.themeOverride";
 
 function loadThemeOverride(): ThemeMode | null {
@@ -76,7 +74,7 @@ function saveThemeOverride(theme: ThemeMode) {
   try {
     localStorage.setItem(THEME_OVERRIDE_KEY, theme);
   } catch {
-    // Falls back to the admin-set default next load - not worth surfacing an error for.
+    // Falls back to light mode next load - not worth surfacing an error for.
   }
 }
 
@@ -96,12 +94,37 @@ export function App() {
   const [themeOverride, setThemeOverride] = useState<ThemeMode | null>(() => loadThemeOverride());
   const [systemMessage, setSystemMessage] = useState("준비되었습니다.");
 
-  const effectiveTheme = themeOverride ?? settings.theme;
+  const effectiveTheme = themeOverride ?? "light";
 
   const toggleTheme = () => {
     const next: ThemeMode = effectiveTheme === "dark" ? "light" : "dark";
     setThemeOverride(next);
     saveThemeOverride(next);
+  };
+
+  const applyLoadedProtectedData = (
+    loadedMembers: PublicMember[],
+    loadedActivities: Activity[],
+    loadedBoardPosts: BoardPost[],
+    sessionMember: PublicMember
+  ) => {
+    setMembers(loadedMembers);
+    setActivities(loadedActivities);
+    setBoardPosts(loadedBoardPosts);
+
+    const refreshed = loadedMembers.find((member) => member.id === sessionMember.id) ?? sessionMember;
+    saveSession(refreshed);
+    setSession(refreshed);
+  };
+
+  const loadProtectedData = async (sessionMember: PublicMember) => {
+    const [loadedMembers, loadedActivities, loadedBoardPosts] = await Promise.all([
+      listMembers(),
+      listActivities(),
+      listBoardPosts()
+    ]);
+
+    applyLoadedProtectedData(loadedMembers, loadedActivities, loadedBoardPosts, sessionMember);
   };
 
   useEffect(() => {
@@ -113,6 +136,14 @@ export function App() {
       // trusting it for anything. An expired/invalid session here means every other fetch below
       // will come back empty (server now requires login to read club data), so log out cleanly
       // instead of showing a blank app.
+      const loadedSettings = await loadSettings();
+
+      if (!mounted) {
+        return;
+      }
+
+      setSettings(loadedSettings);
+
       const serverSession = await fetchServerSession();
 
       if (!mounted) {
@@ -122,10 +153,14 @@ export function App() {
       if (!serverSession) {
         clearSession();
         setSession(null);
+        setMembers([]);
+        setActivities([]);
+        setBoardPosts([]);
+        setSystemMessage("로그인이 필요합니다.");
+        return;
       }
 
-      const [loadedSettings, loadedMembers, loadedActivities, loadedBoardPosts] = await Promise.all([
-        loadSettings(),
+      const [loadedMembers, loadedActivities, loadedBoardPosts] = await Promise.all([
         listMembers(),
         listActivities(),
         listBoardPosts()
@@ -135,31 +170,15 @@ export function App() {
         return;
       }
 
-      setSettings(loadedSettings);
-      setMembers(loadedMembers);
-      setActivities(loadedActivities);
-      setBoardPosts(loadedBoardPosts);
-
-      // Refresh the cached session against the freshly loaded member list so role/grade
-      // changes made by an admin on another launch are reflected immediately.
-      setSession((current) => {
-        if (!current) {
-          return current;
-        }
-
-        const refreshed = loadedMembers.find((member) => member.id === current.id);
-
-        if (refreshed) {
-          saveSession(refreshed);
-        }
-
-        return refreshed ?? current;
-      });
-
+      applyLoadedProtectedData(loadedMembers, loadedActivities, loadedBoardPosts, serverSession);
       setSystemMessage("데이터를 불러왔습니다.");
     };
 
-    void loadInitialData();
+    void loadInitialData().catch(() => {
+      if (mounted) {
+        setSystemMessage("데이터를 불러오지 못했습니다.");
+      }
+    });
 
     return () => {
       mounted = false;
@@ -220,6 +239,9 @@ export function App() {
     setSession(member);
     setSystemMessage(`${member.name}님, 환영합니다.`);
     setView("home");
+    void loadProtectedData(member)
+      .then(() => setSystemMessage("데이터를 불러왔습니다."))
+      .catch(() => setSystemMessage("데이터를 불러오지 못했습니다."));
   };
 
   const handleLogout = () => {

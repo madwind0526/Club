@@ -115,20 +115,6 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
     }
   };
 
-  // Theme applies (and persists) the moment it's changed - other fields still wait for the
-  // explicit Save button below, so this only ever carries the theme change, not stray drafts.
-  const handleThemeChange = async (theme: AppSettings["theme"]) => {
-    update("theme", theme);
-    const next = { ...settings, theme };
-    onSaved(next);
-
-    try {
-      await saveSettings(next);
-    } catch (error) {
-      onSystemMessage(error instanceof Error ? error.message : "테마 저장에 실패했습니다.");
-    }
-  };
-
   return (
     <div>
       <div className="view-header">
@@ -136,26 +122,6 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
       </div>
 
       <div className="form-grid">
-        <div className="form-field">
-          <label>테마</label>
-          <div className="segmented-control">
-            <button
-              className={draft.theme === "light" ? "segmented-option active" : "segmented-option"}
-              onClick={() => handleThemeChange("light")}
-              type="button"
-            >
-              라이트
-            </button>
-            <button
-              className={draft.theme === "dark" ? "segmented-option active" : "segmented-option"}
-              onClick={() => handleThemeChange("dark")}
-              type="button"
-            >
-              다크
-            </button>
-          </div>
-        </div>
-
         <div className="form-field">
           <label htmlFor="settings-club-name">클럽 이름</label>
           <input

@@ -6,7 +6,13 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { buildMonthlyReportWorkbook } from "./server/excelExport.js";
 import { resolveAppPath, resolveCategoryFolder, resolvePlanFolder } from "./server/paths.js";
-import { isActivityListStructuralChange, isEditBeyondSelfAttendanceToggle, sanitizeSelfMemberEdit } from "./server/auth.js";
+import {
+  isActivityListStructuralChange,
+  isBoardEditBeyondMemberPermissions,
+  isBoardPostListForPermissionCheck,
+  isEditBeyondSelfAttendanceToggle,
+  sanitizeSelfMemberEdit
+} from "./server/auth.js";
 
 type FolderSettings = {
   dataRootFolder?: string;
@@ -30,6 +36,23 @@ interface ActivityForAuthCheck {
   expenseFileNames: unknown;
   receipts: unknown;
   expenses: unknown;
+}
+
+interface BoardPostForAuthCheck {
+  id: string;
+  category: unknown;
+  title: unknown;
+  content: unknown;
+  authorId: string;
+  createdAt: unknown;
+  pinned: unknown;
+  comments: Array<{
+    id: string;
+    authorId: string;
+    content: unknown;
+    createdAt: unknown;
+    parentCommentId?: string;
+  }>;
 }
 
 interface StoredMember {
@@ -103,6 +126,11 @@ function sendJson(response: ServerResponse, statusCode: number, payload: unknown
   response.statusCode = statusCode;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.end(JSON.stringify(payload));
+}
+
+function isPathWithinRoot(filePath: string, root: string): boolean {
+  const relativePath = path.relative(root, filePath);
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
 }
 
 function hashPassword(password: string) {
@@ -257,7 +285,7 @@ function clubDevApiPlugin() {
         ]);
       }
 
-      // Settings must stay readable pre-login - the login screen itself shows the club name/theme.
+      // Settings must stay readable pre-login - the login screen itself shows the club name.
       server.middlewares.use("/api/settings", async (request, response) => {
         if (request.method === "GET") {
           return sendJson(response, 200, await readJson("app-settings.json", null));
@@ -527,6 +555,17 @@ function clubDevApiPlugin() {
 
         if (request.method === "PUT" && isTrustedApiRequest(request)) {
           const body = JSON.parse((await readRequestBody(request)) || "[]");
+
+          if (!isBoardPostListForPermissionCheck(body)) {
+            return sendJson(response, 400, { ok: false, error: "게시글 데이터 형식이 올바르지 않습니다." });
+          }
+
+          const current = await readJson<BoardPostForAuthCheck[]>("board.json", []);
+
+          if (requester.role !== "admin" && isBoardEditBeyondMemberPermissions(current, body, requester.id)) {
+            return sendJson(response, 403, { ok: false, error: "권한이 없습니다. 본인 게시글 삭제와 댓글 작성만 가능합니다." });
+          }
+
           await writeJson("board.json", body);
           return sendJson(response, 200, body);
         }
@@ -683,7 +722,7 @@ function clubDevApiPlugin() {
               .map((folder) => resolveAppPath(folder))
           : [];
         const filePath = resolveAppPath(requestedPath);
-        const isWithinAnyRoot = roots.some((root) => filePath === root || filePath.startsWith(root + path.sep));
+        const isWithinAnyRoot = roots.some((root) => isPathWithinRoot(filePath, root));
         const isLogoFile = Boolean(settings?.clubLogoPath) && filePath === resolveAppPath(settings!.clubLogoPath!);
 
         if (!isWithinAnyRoot && !isLogoFile) {

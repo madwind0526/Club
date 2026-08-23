@@ -18,12 +18,18 @@ export function isActivityListStructuralChange(
   current: Array<{ id: string }>,
   next: Array<{ id: string }>
 ): boolean {
-  if (current.length !== next.length) {
+  const currentIds = new Set(current.map((activity) => activity.id));
+  const nextIds = new Set(next.map((activity) => activity.id));
+
+  if (currentIds.size !== current.length || nextIds.size !== next.length) {
     return true;
   }
 
-  const currentIds = new Set(current.map((activity) => activity.id));
-  return next.some((activity) => !currentIds.has(activity.id));
+  if (currentIds.size !== nextIds.size) {
+    return true;
+  }
+
+  return [...currentIds].some((id) => !nextIds.has(id));
 }
 
 interface ActivityForPermissionCheck {
@@ -94,4 +100,122 @@ export function sanitizeSelfMemberEdit<T extends { role: unknown; grade: unknown
   incoming: T
 ): T {
   return { ...incoming, role: existing.role, grade: existing.grade, knoxId: existing.knoxId };
+}
+
+interface BoardCommentForPermissionCheck {
+  id: string;
+  authorId: string;
+  content: unknown;
+  createdAt: unknown;
+  parentCommentId?: string;
+}
+
+interface BoardPostForPermissionCheck {
+  id: string;
+  category: unknown;
+  title: unknown;
+  content: unknown;
+  authorId: string;
+  createdAt: unknown;
+  pinned: unknown;
+  comments: BoardCommentForPermissionCheck[];
+}
+
+const BOARD_POST_IMMUTABLE_FIELDS = ["category", "title", "content", "authorId", "createdAt", "pinned"] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function hasDuplicateIds(items: Array<{ id: string }>): boolean {
+  return new Set(items.map((item) => item.id)).size !== items.length;
+}
+
+export function isBoardPostListForPermissionCheck(value: unknown): value is BoardPostForPermissionCheck[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (post) =>
+        isRecord(post) &&
+        typeof post.id === "string" &&
+        typeof post.authorId === "string" &&
+        Array.isArray(post.comments) &&
+        post.comments.every(
+          (comment) =>
+            isRecord(comment) &&
+            typeof comment.id === "string" &&
+            typeof comment.authorId === "string" &&
+            (comment.parentCommentId === undefined || typeof comment.parentCommentId === "string")
+        )
+    )
+  );
+}
+
+function hasCommentEditBeyondAppendByRequester(
+  before: BoardCommentForPermissionCheck[],
+  after: BoardCommentForPermissionCheck[],
+  requesterId: string
+): boolean {
+  if (hasDuplicateIds(before) || hasDuplicateIds(after) || after.length < before.length) {
+    return true;
+  }
+
+  if (before.some((comment, index) => JSON.stringify(comment) !== JSON.stringify(after[index]))) {
+    return true;
+  }
+
+  const allowedParentIds = new Set(before.map((comment) => comment.id));
+  const added = after.slice(before.length);
+
+  return added.some((comment) => {
+    if (comment.authorId !== requesterId) {
+      return true;
+    }
+
+    if (typeof comment.id !== "string" || !comment.id || typeof comment.content !== "string" || !comment.content.trim()) {
+      return true;
+    }
+
+    if (typeof comment.createdAt !== "string" || !comment.createdAt) {
+      return true;
+    }
+
+    return typeof comment.parentCommentId === "string" && !allowedParentIds.has(comment.parentCommentId);
+  });
+}
+
+// Board posts are persisted as a whole-array replace from the renderer. For non-admins, keep the
+// server-side contract narrow: they may create their own non-notice post, delete their own post,
+// and append their own comments. Everything else is admin-only.
+export function isBoardEditBeyondMemberPermissions(
+  current: BoardPostForPermissionCheck[],
+  next: BoardPostForPermissionCheck[],
+  requesterId: string
+): boolean {
+  if (hasDuplicateIds(current) || hasDuplicateIds(next)) {
+    return true;
+  }
+
+  const currentById = new Map(current.map((post) => [post.id, post]));
+  const nextById = new Map(next.map((post) => [post.id, post]));
+
+  for (const post of current) {
+    if (!nextById.has(post.id) && post.authorId !== requesterId) {
+      return true;
+    }
+  }
+
+  return next.some((post) => {
+    const before = currentById.get(post.id);
+
+    if (!before) {
+      return post.authorId !== requesterId || post.category === "공지" || Boolean(post.pinned) || post.comments.length > 0;
+    }
+
+    if (BOARD_POST_IMMUTABLE_FIELDS.some((field) => JSON.stringify(before[field]) !== JSON.stringify(post[field]))) {
+      return true;
+    }
+
+    return hasCommentEditBeyondAppendByRequester(before.comments, post.comments, requesterId);
+  });
 }

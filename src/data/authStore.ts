@@ -33,11 +33,9 @@ export async function logout(): Promise<void> {
 // still considers valid - a stale localStorage cache alone must never be trusted for
 // authorization, only for what the UI shows before this check comes back.
 export async function fetchServerSession(): Promise<PublicMember | null> {
-  if (window.clubApp) {
-    // Electron's IPC session is tracked in the main process and only ever set by a successful
-    // login/list call within this same running app instance - the locally cached member (if
-    // any) is what we already trust there, there's no separate handshake needed.
-    return loadSession();
+  if (window.clubApp?.getSession) {
+    const result = await window.clubApp.getSession();
+    return result.ok && result.member ? result.member : null;
   }
 
   const response = await fetch("/api/auth/session").catch(() => null);
