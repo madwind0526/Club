@@ -93,6 +93,12 @@ export function App() {
   const [monthlyExcelReports, setMonthlyExcelReports] = useState<Record<string, string>>(() => loadMonthlyExcelReports());
   const [themeOverride, setThemeOverride] = useState<ThemeMode | null>(() => loadThemeOverride());
   const [systemMessage, setSystemMessage] = useState("준비되었습니다.");
+  // The cached (localStorage) `session` above is only ever a UI hint, never proof of a valid
+  // login - without this flag, the very first render would trust that stale cache and flash the
+  // full app (Home, Sidebar, ...) before the async server-side check below has a chance to run
+  // and (if the session is actually invalid) revert it. Gating on this instead of `session`
+  // guarantees LoginView is what's on screen until the server has actually confirmed the session.
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
 
   const effectiveTheme = themeOverride ?? "light";
 
@@ -157,6 +163,7 @@ export function App() {
         setActivities([]);
         setBoardPosts([]);
         setSystemMessage("로그인이 필요합니다.");
+        setIsAuthChecked(true);
         return;
       }
 
@@ -171,12 +178,14 @@ export function App() {
       }
 
       applyLoadedProtectedData(loadedMembers, loadedActivities, loadedBoardPosts, serverSession);
+      setIsAuthChecked(true);
       setSystemMessage("데이터를 불러왔습니다.");
     };
 
     void loadInitialData().catch(() => {
       if (mounted) {
         setSystemMessage("데이터를 불러오지 못했습니다.");
+        setIsAuthChecked(true);
       }
     });
 
@@ -322,6 +331,17 @@ export function App() {
     const result = await openFileExternally(filePath);
     setSystemMessage(result.ok ? "Excel 리포트를 열었습니다." : result.error ?? "Excel 리포트를 열지 못했습니다.");
   };
+
+  if (!isAuthChecked) {
+    return (
+      <div className={`login-screen ${effectiveTheme}`}>
+        <div className="login-card" style={{ textAlign: "center" }}>
+          <h1>{settings.clubName}</h1>
+          <p className="board-post-meta">불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!session) {
     return <LoginView clubName={settings.clubName} onLoginSuccess={handleLoginSuccess} theme={effectiveTheme} />;
