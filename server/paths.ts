@@ -12,23 +12,25 @@ export function resolveAppPath(filePath: string): string {
 interface FolderSettings {
   dataRootFolder?: string;
   photosFolder?: string;
+  bankFolder?: string;
   receiptsFolder?: string;
   expensesFolder?: string;
   planFolder?: string;
 }
 
-// Photos/Receipts/Expenses/Plan each have an optional dedicated folder override in Settings;
+// Photos/Bank/Receipts/Expenses/Plan each have an optional dedicated folder override in Settings;
 // when unset, they fall back to <dataRootFolder>/<category>. Returns null when neither is set.
 export function resolveCategoryFolder(
   settings: FolderSettings,
-  category: "Photos" | "Receipts" | "Expenses"
+  category: "Photos" | "Bank" | "Receipts" | "Expenses"
 ): string | null {
-  const override =
-    category === "Photos"
-      ? settings.photosFolder
-      : category === "Receipts"
-        ? settings.receiptsFolder
-        : settings.expensesFolder;
+  const overrideByCategory: Record<"Photos" | "Bank" | "Receipts" | "Expenses", string | undefined> = {
+    Photos: settings.photosFolder,
+    Bank: settings.bankFolder,
+    Receipts: settings.receiptsFolder,
+    Expenses: settings.expensesFolder
+  };
+  const override = overrideByCategory[category];
 
   if (override) {
     return override;

@@ -4,3 +4,4 @@ dist-electron/
 *.log
 .env
 *.tsbuildinfo
+backup/

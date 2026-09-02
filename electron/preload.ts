@@ -26,10 +26,16 @@ contextBridge.exposeInMainWorld("clubApp", {
 
   pickFile: () => ipcRenderer.invoke("dialog:pickFile"),
   pickFolder: (defaultPath?: string) => ipcRenderer.invoke("dialog:pickFolder", defaultPath),
-  scanMediaFolder: (category: "Photos" | "Receipts" | "Expenses", yyyyMm: string, week: number) =>
+  scanMediaFolder: (category: "Photos" | "Bank" | "Receipts" | "Expenses", yyyyMm: string, week: number) =>
     ipcRenderer.invoke("media:scanFolder", category, yyyyMm, week),
   findPlanFiles: (yyyyMm: string, week: number) => ipcRenderer.invoke("media:findPlanFiles", yyyyMm, week),
   ensureMediaFolders: (yyyyMm: string, week: number) => ipcRenderer.invoke("media:ensureFolders", yyyyMm, week),
   openPath: (filePath: string) => ipcRenderer.invoke("shell:openPath", filePath),
-  exportMonthlyExcel: (yyyyMm: string) => ipcRenderer.invoke("export:monthlyExcel", yyyyMm)
+  exportMonthlyExcel: (yyyyMm: string, folderPath: string) =>
+    ipcRenderer.invoke("export:monthlyExcel", yyyyMm, folderPath),
+  listDirectory: (dirPath?: string) => ipcRenderer.invoke("fs:listDir", dirPath),
+
+  backupDatabase: () => ipcRenderer.invoke("db:backup"),
+  listDatabaseBackups: () => ipcRenderer.invoke("db:listBackups"),
+  restoreDatabase: (fileName: string) => ipcRenderer.invoke("db:restore", fileName)
 });

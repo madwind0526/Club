@@ -6,6 +6,7 @@ export const defaultSettings: AppSettings = {
   clubIntro: "동호회 소개를 Settings 화면에서 입력해 주세요.",
   dataRootFolder: "",
   photosFolder: "",
+  bankFolder: "",
   receiptsFolder: "",
   expensesFolder: "",
   planFolder: "",

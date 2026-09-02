@@ -1,4 +1,4 @@
-import type { MediaScanResult } from "../types/domain";
+import type { DirectoryListing, MediaScanResult } from "../types/domain";
 
 export async function pickFile(): Promise<{ path: string; name: string } | null> {
   if (window.clubApp?.pickFile) {
@@ -28,7 +28,7 @@ export async function pickFolder(defaultPath?: string): Promise<{ path: string }
 }
 
 export async function scanMediaFolder(
-  category: "Photos" | "Receipts" | "Expenses",
+  category: "Photos" | "Bank" | "Receipts" | "Expenses",
   yyyyMm: string,
   week: number
 ): Promise<MediaScanResult> {
@@ -72,12 +72,42 @@ export async function ensureMediaFolders(yyyyMm: string, week: number): Promise<
   return response.ok ? response.json() : { ok: false };
 }
 
+// Backs the built-in folder navigator (월간 정리 Excel 내보내기 저장 폴더 선택). In the dev-only
+// browser fallback (no Electron), /api/list-dir does the same fs.readdir/fs.stat listing on the
+// same machine `npm run dev` runs on.
+export async function listDirectory(dirPath?: string): Promise<DirectoryListing> {
+  if (window.clubApp?.listDirectory) {
+    return window.clubApp.listDirectory(dirPath);
+  }
+
+  const params = new URLSearchParams();
+
+  if (dirPath) {
+    params.set("path", dirPath);
+  }
+
+  const response = await fetch(`/api/list-dir${params.toString() ? `?${params.toString()}` : ""}`);
+
+  return response.ok
+    ? response.json()
+    : { path: dirPath ?? "", parent: null, entries: [], shortcuts: [], error: "폴더를 불러오지 못했습니다." };
+}
+
 // Opens a file with the OS default application - used as the preview fallback for plan-file
-// types that can't be rendered inline (doc/xls/ppt and their -x variants). Electron-only.
+// types that can't be rendered inline (doc/xls/ppt and their -x variants), and for the monthly
+// Excel report's "열기" button. In the dev-only browser fallback, /api/open-path does the same
+// open on the machine `npm run dev` runs on.
 export async function openFileExternally(filePath: string): Promise<{ ok: boolean; error?: string }> {
   if (window.clubApp?.openPath) {
     return window.clubApp.openPath(filePath);
   }
 
-  return { ok: false, error: "Electron 앱에서만 파일을 열 수 있습니다." };
+  const response = await fetch("/api/open-path", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: filePath })
+  });
+  const body = await response.json().catch(() => null);
+
+  return response.ok ? (body ?? { ok: true }) : { ok: false, error: body?.error ?? "파일을 열지 못했습니다." };
 }

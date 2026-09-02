@@ -41,6 +41,7 @@ interface ActivityForPermissionCheck {
   planFilePaths: unknown;
   attendeeIds: string[];
   photoFileNames: unknown;
+  bankFileNames: unknown;
   receiptFileNames: unknown;
   expenseFileNames: unknown;
   receipts: unknown;
@@ -54,6 +55,7 @@ const NON_ATTENDANCE_FIELDS = [
   "weekOfMonth",
   "planFilePaths",
   "photoFileNames",
+  "bankFileNames",
   "receiptFileNames",
   "expenseFileNames",
   "receipts",
@@ -62,8 +64,8 @@ const NON_ATTENDANCE_FIELDS = [
 
 // A non-admin may view an existing activity's full report but the only change they're allowed to
 // make to it is toggling their OWN attendance - everything else (title/content/plan files,
-// someone else's attendance, photos/receipts/expenses) is admin-only, matching the read-only UI
-// in ActivityReportView.tsx.
+// someone else's attendance, photos/bank statements/receipts/expenses) is admin-only, matching
+// the read-only UI in ActivityReportView.tsx.
 export function isEditBeyondSelfAttendanceToggle(
   current: ActivityForPermissionCheck[],
   next: ActivityForPermissionCheck[],

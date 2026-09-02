@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { exportMonthlyReportExcel } from "../../data/activitiesStore";
 import { toDisplayableFileUrl } from "../../utils/fileUrl";
+import { FolderNavigatorModal } from "./FolderNavigatorModal";
 import type { Activity, AppSettings, ExpenseItem, PublicMember, ReceiptItem } from "../../types/domain";
 
 interface MonthlyReportDetailProps {
@@ -35,8 +36,12 @@ function formatWon(amount: number) {
   return `${amount.toLocaleString()}원`;
 }
 
-const MEDIA_SECTIONS: Array<{ field: "photoFileNames" | "receiptFileNames" | "expenseFileNames"; title: string }> = [
+const MEDIA_SECTIONS: Array<{
+  field: "photoFileNames" | "bankFileNames" | "receiptFileNames" | "expenseFileNames";
+  title: string;
+}> = [
   { field: "photoFileNames", title: "사진" },
+  { field: "bankFileNames", title: "통장" },
   { field: "receiptFileNames", title: "영수증 사진" },
   { field: "expenseFileNames", title: "경비 사진" }
 ];
@@ -101,18 +106,14 @@ export function MonthlyReportDetail({
 }: MonthlyReportDetailProps) {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
   const isAdmin = currentMember.role === "admin";
 
-  const handleExportExcel = async () => {
-    if (!isAdmin) {
-      onSystemMessage("권한이 없습니다. admin만 Excel로 내보낼 수 있습니다.");
-      return;
-    }
-
+  const runExport = async (folderPath: string) => {
     setIsExporting(true);
 
     try {
-      const result = await exportMonthlyReportExcel(yyyyMm);
+      const result = await exportMonthlyReportExcel(yyyyMm, folderPath);
 
       if (result.ok) {
         if (result.path) {
@@ -126,6 +127,23 @@ export function MonthlyReportDetail({
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleExportExcel = () => {
+    if (!isAdmin) {
+      onSystemMessage("권한이 없습니다. admin만 Excel로 내보낼 수 있습니다.");
+      return;
+    }
+
+    // Pick the destination folder through the built-in navigator first, then save directly into
+    // it - the same flow in Electron and the browser dev fallback (both write server-side, on
+    // whichever machine is actually running the app).
+    setIsFolderPickerOpen(true);
+  };
+
+  const handleFolderConfirmed = (folderPath: string) => {
+    setIsFolderPickerOpen(false);
+    void runExport(folderPath);
   };
 
   const monthActivities = useMemo(
@@ -292,6 +310,14 @@ export function MonthlyReportDetail({
         <div className="image-preview-overlay" onClick={() => setPreviewImageUrl(null)}>
           <img alt="" className="image-preview-content" src={toDisplayableFileUrl(previewImageUrl)} />
         </div>
+      )}
+
+      {isFolderPickerOpen && (
+        <FolderNavigatorModal
+          onCancel={() => setIsFolderPickerOpen(false)}
+          onConfirm={handleFolderConfirmed}
+          title="Excel 저장 폴더 선택"
+        />
       )}
     </div>
   );

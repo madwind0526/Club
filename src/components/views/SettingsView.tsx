@@ -4,7 +4,7 @@ import { saveSettings } from "../../data/settingsStore";
 import { toDisplayableFileUrl } from "../../utils/fileUrl";
 import type { AppSettings } from "../../types/domain";
 
-type CategoryFolderKey = "photosFolder" | "receiptsFolder" | "expensesFolder" | "planFolder";
+type CategoryFolderKey = "photosFolder" | "bankFolder" | "receiptsFolder" | "expensesFolder" | "planFolder";
 
 // {root}\Photos style default - only used to seed the folder-browse dialog's starting location.
 function joinFolder(root: string, category: string) {
@@ -159,7 +159,7 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
 
         <div className="form-field">
           <label htmlFor="settings-data-root">
-            데이터 루트 폴더 (사진/영수증/경비 폴더의 기준 경로: Photos, Receipts, Expenses 하위 폴더를 자동으로 찾습니다)
+            데이터 루트 폴더 (사진/통장/영수증/경비 폴더의 기준 경로: Photos, Bank, Receipts, Expenses 하위 폴더를 자동으로 찾습니다)
           </label>
           <input
             id="settings-data-root"
@@ -186,6 +186,24 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
             </div>
           </div>
           <div className="form-field">
+            <label htmlFor="settings-bank-folder">Bank 폴더 (비워두면 데이터 루트 폴더/Bank)</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input
+                id="settings-bank-folder"
+                onChange={(event) => update("bankFolder", event.target.value)}
+                placeholder="Bank"
+                style={{ flex: 1 }}
+                value={draft.bankFolder}
+              />
+              <button className="btn btn-sm" onClick={() => handlePickCategoryFolder("bankFolder", "Bank")} type="button">
+                찾아보기
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-field">
             <label htmlFor="settings-receipts-folder">Receipts 폴더 (비워두면 데이터 루트 폴더/Receipts)</label>
             <div style={{ display: "flex", gap: 10 }}>
               <input
@@ -204,9 +222,6 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
               </button>
             </div>
           </div>
-        </div>
-
-        <div className="form-row">
           <div className="form-field">
             <label htmlFor="settings-expenses-folder">Expenses 폴더 (비워두면 데이터 루트 폴더/Expenses)</label>
             <div style={{ display: "flex", gap: 10 }}>
@@ -226,6 +241,9 @@ export function SettingsView({ settings, onSaved, onSystemMessage }: SettingsVie
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="form-row">
           <div className="form-field">
             <label htmlFor="settings-plan-folder">Plan 폴더 (비워두면 데이터 루트 폴더/Plan)</label>
             <div style={{ display: "flex", gap: 10 }}>

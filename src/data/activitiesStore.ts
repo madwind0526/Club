@@ -65,36 +65,29 @@ export function getActivityStatus(dateIso: string, today = new Date()): Activity
   return dateIso <= todayIso ? "완료" : "예정";
 }
 
-// In Electron this opens a native "Save As" dialog. In the dev-only browser fallback, the
-// generated workbook streams back as a normal file download instead.
-export async function exportMonthlyReportExcel(yyyyMm: string): Promise<{ ok: boolean; path?: string; error?: string }> {
+// `folderPath` (chosen via the built-in FolderNavigatorModal, both in Electron and the dev-only
+// browser fallback) is where the file gets saved - in the browser case, /api/export-monthly-excel
+// writes it server-side, on the same machine `npm run dev` runs on, the same way electron/main.ts
+// does, rather than streaming a browser download.
+export async function exportMonthlyReportExcel(
+  yyyyMm: string,
+  folderPath: string
+): Promise<{ ok: boolean; path?: string; error?: string }> {
   if (window.clubApp?.exportMonthlyExcel) {
     try {
-      return await window.clubApp.exportMonthlyExcel(yyyyMm);
+      return await window.clubApp.exportMonthlyExcel(yyyyMm, folderPath);
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : "엑셀 파일 생성에 실패했습니다." };
     }
   }
 
-  const response = await fetch(`/api/export-monthly-excel?yyyyMm=${encodeURIComponent(yyyyMm)}`);
+  const params = new URLSearchParams({ yyyyMm, folder: folderPath });
+  const response = await fetch(`/api/export-monthly-excel?${params.toString()}`);
+  const body = await response.json().catch(() => null);
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
-      const body = await response.json().catch(() => null);
-      return { ok: false, error: body?.error ?? "권한이 없습니다." };
-    }
-
-    return { ok: false, error: "엑셀 파일 생성에 실패했습니다." };
+    return { ok: false, error: body?.error ?? "엑셀 파일 생성에 실패했습니다." };
   }
 
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-
-  anchor.href = url;
-  anchor.download = `club-management-${yyyyMm}-monthly-report.xlsx`;
-  anchor.click();
-  URL.revokeObjectURL(url);
-
-  return { ok: true };
+  return body ?? { ok: true };
 }

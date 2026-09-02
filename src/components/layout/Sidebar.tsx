@@ -1,4 +1,4 @@
-import { CalendarPlus, ClipboardList, FilePlus2, Home, MessageSquare, Users } from "lucide-react";
+import { CalendarPlus, ClipboardList, Database, FilePlus2, Home, MessageSquare, RotateCcw, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ViewMode } from "../../App";
 
@@ -18,6 +18,8 @@ const bottomNavItems: Array<{ view: ViewMode; label: string; icon: ReactNode; ad
   { view: "activity-register", label: "활동 등록", icon: <FilePlus2 size={16} />, adminOnly: true },
   { view: "weekly-report", label: "주간 정리", icon: <ClipboardList size={16} />, adminOnly: true },
   { view: "monthly-report", label: "월간 정리", icon: <ClipboardList size={16} /> },
+  { view: "db-backup", label: "DB 백업", icon: <Database size={16} />, adminOnly: true },
+  { view: "db-restore", label: "DB 복원", icon: <RotateCcw size={16} />, adminOnly: true },
   { view: "members", label: "회원 관리", icon: <Users size={16} /> }
 ];
 

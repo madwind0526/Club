@@ -51,6 +51,7 @@ export interface Activity {
   content: string;
   attendeeIds: string[];
   photoFileNames: string[];
+  bankFileNames: string[];
   receiptFileNames: string[];
   expenseFileNames: string[];
   receipts: ReceiptItem[];
@@ -92,6 +93,7 @@ export interface AppSettings {
   // Per-category folder overrides - empty means "use <dataRootFolder>/<category>" (unchanged
   // default behavior). Same input style/semantics as dataRootFolder.
   photosFolder: string;
+  bankFolder: string;
   receiptsFolder: string;
   expensesFolder: string;
   planFolder: string;
@@ -109,6 +111,23 @@ export interface AppSettings {
 export interface MediaScanResult {
   folder: string;
   files: string[];
+}
+
+// The built-in folder navigator's directory listing (월간 정리 Excel 내보내기 저장 폴더 선택 전용) -
+// see src/components/views/FolderNavigatorModal.tsx.
+export interface DirectoryListing {
+  path: string;
+  parent: string | null;
+  entries: Array<{ name: string; path: string }>;
+  shortcuts: Array<{ label: string; path: string }>;
+  error?: string;
+}
+
+// One entry in the "DB 복원" list - see server/backup.ts.
+export interface DatabaseBackupInfo {
+  name: string;
+  size: number;
+  modifiedAt: string;
 }
 
 export interface LoginResult {

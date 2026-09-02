@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { formatYyMm, formatYyyyMm } from "../../data/activitiesStore";
+import { backupDatabase } from "../../data/dbBackupStore";
 import { findPlanFiles, pickFile, scanMediaFolder } from "../../data/mediaStore";
 import { toDisplayableFileUrl } from "../../utils/fileUrl";
 import { PlanFileControls } from "./PlanFileControls";
@@ -15,8 +16,8 @@ interface ActivityReportViewProps {
   onClose: () => void;
 }
 
-type MediaCategory = "Photos" | "Receipts" | "Expenses";
-type MediaField = "photoFileNames" | "receiptFileNames" | "expenseFileNames";
+type MediaCategory = "Photos" | "Bank" | "Receipts" | "Expenses";
+type MediaField = "photoFileNames" | "bankFileNames" | "receiptFileNames" | "expenseFileNames";
 
 // 사진/영수증/경비 추가·삭제는 admin 전용 - 열람(썸네일 보기, 표 내용 보기)은 회원 누구나 그대로 가능.
 function LineItemTable({
@@ -236,7 +237,15 @@ export function ActivityReportView({
     setIsScanning(category);
 
     const field: MediaField =
-      category === "Photos" ? "photoFileNames" : category === "Receipts" ? "receiptFileNames" : "expenseFileNames";
+      category === "Photos"
+        ? "photoFileNames"
+        : category === "Bank"
+          ? "bankFileNames"
+          : category === "Receipts"
+            ? "receiptFileNames"
+            : "expenseFileNames";
+    const categoryLabel =
+      category === "Photos" ? "사진" : category === "Bank" ? "통장" : category === "Receipts" ? "영수증" : "경비";
 
     try {
       const result = await scanMediaFolder(category, formatYyyyMm(draft.date), draft.weekOfMonth);
@@ -251,7 +260,7 @@ export function ActivityReportView({
       onSystemMessage(
         result.files.length > 0
           ? `${result.folder} 에서 이미지 ${result.files.length}개를 불러왔습니다.`
-          : `${category === "Photos" ? "사진" : category === "Receipts" ? "영수증" : "경비"} 폴더에 이미지가 없습니다. (데이터 루트 폴더 설정을 확인하세요)`
+          : `${categoryLabel} 폴더에 이미지가 없습니다. (데이터 루트 폴더 설정을 확인하세요)`
       );
     } finally {
       setIsScanning(null);
@@ -261,6 +270,13 @@ export function ActivityReportView({
   const handleSave = () => {
     onSave(draft);
     onSystemMessage("활동 리포트를 저장했습니다.");
+
+    // admin이 리포트 내용(제목/내용/계획서/사진/통장/영수증/경비)을 저장할 때만 자동 백업 - 일반
+    // 회원의 본인 참석 여부 저장까지 매번 걸면(같은 버튼) 너무 잦아서 여기서 admin으로 한정한다.
+    // 화면 표시 없이 백그라운드로 실행하고, 실패해도 리포트 저장 자체에는 영향을 주지 않는다.
+    if (isAdmin) {
+      void backupDatabase();
+    }
   };
 
   const handlePickPlanFile = async () => {
@@ -441,6 +457,19 @@ export function ActivityReportView({
           onScan={() => handleScan("Photos")}
           readOnly={!isAdmin}
           title="사진"
+        />
+      </div>
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <MediaSection
+          emptyMessage="불러온 통장 사본이 없습니다."
+          files={draft.bankFileNames}
+          isScanning={isScanning === "Bank"}
+          onPreview={setPreviewImageUrl}
+          onRemove={(url) => removeMediaFile("bankFileNames", url)}
+          onScan={() => handleScan("Bank")}
+          readOnly={!isAdmin}
+          title="은행 통장"
         />
       </div>
 

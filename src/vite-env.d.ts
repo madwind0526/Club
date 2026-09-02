@@ -1,6 +1,15 @@
 /// <reference types="vite/client" />
 
-import type { Activity, AppSettings, BoardPost, LoginResult, MediaScanResult, PublicMember } from "./types/domain";
+import type {
+  Activity,
+  AppSettings,
+  BoardPost,
+  DatabaseBackupInfo,
+  DirectoryListing,
+  LoginResult,
+  MediaScanResult,
+  PublicMember
+} from "./types/domain";
 
 interface ClubApp {
   platform: string;
@@ -27,14 +36,19 @@ interface ClubApp {
   pickFile: () => Promise<{ path: string; name: string } | null>;
   pickFolder: (defaultPath?: string) => Promise<{ path: string } | null>;
   scanMediaFolder: (
-    category: "Photos" | "Receipts" | "Expenses",
+    category: "Photos" | "Bank" | "Receipts" | "Expenses",
     yyyyMm: string,
     week: number
   ) => Promise<MediaScanResult>;
   findPlanFiles: (yyyyMm: string, week: number) => Promise<Array<{ path: string; name: string }>>;
   ensureMediaFolders: (yyyyMm: string, week: number) => Promise<{ ok: boolean }>;
   openPath: (filePath: string) => Promise<{ ok: boolean; error?: string }>;
-  exportMonthlyExcel: (yyyyMm: string) => Promise<{ ok: boolean; path?: string; error?: string }>;
+  exportMonthlyExcel: (yyyyMm: string, folderPath: string) => Promise<{ ok: boolean; path?: string; error?: string }>;
+  listDirectory: (dirPath?: string) => Promise<DirectoryListing>;
+
+  backupDatabase: () => Promise<{ ok: boolean; path?: string; error?: string }>;
+  listDatabaseBackups: () => Promise<DatabaseBackupInfo[]>;
+  restoreDatabase: (fileName: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 declare global {

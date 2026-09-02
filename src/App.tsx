@@ -14,12 +14,14 @@ import { MembersView } from "./components/views/MembersView";
 import { WeeklyReportView } from "./components/views/WeeklyReportView";
 import { MonthlyReportView } from "./components/views/MonthlyReportView";
 import { MonthlyReportDetail } from "./components/views/MonthlyReportDetail";
+import { DbRestoreView } from "./components/views/DbRestoreView";
 import { clearSession, fetchServerSession, loadSession, logout as serverLogout, saveSession } from "./data/authStore";
 import { defaultSettings, loadSettings } from "./data/settingsStore";
 import { listMembers } from "./data/membersStore";
 import { listActivities, saveActivities as persistActivities } from "./data/activitiesStore";
 import { listBoardPosts, saveBoardPosts as persistBoardPosts } from "./data/boardStore";
 import { openFileExternally } from "./data/mediaStore";
+import { backupDatabase } from "./data/dbBackupStore";
 import type { Activity, AppSettings, BoardPost, PublicMember, ThemeMode } from "./types/domain";
 
 export type ViewMode =
@@ -31,13 +33,16 @@ export type ViewMode =
   | "weekly-report"
   | "monthly-report"
   | "settings"
-  | "profile";
+  | "profile"
+  | "db-backup"
+  | "db-restore";
 
 export type ActivitiesViewMode = "photo" | "card" | "list";
 
 // Menus the server also treats as admin-only (see vite.config.mts / electron/main.ts) - kept
-// here so navigating to one shows a warning instead of silently rendering nothing.
-const ADMIN_ONLY_VIEWS = new Set<ViewMode>(["activity-register", "weekly-report", "settings"]);
+// here so navigating to one shows a warning instead of silently rendering nothing. "db-backup"
+// isn't a real view (see navigate() below) but still needs the same admin gate.
+const ADMIN_ONLY_VIEWS = new Set<ViewMode>(["activity-register", "weekly-report", "settings", "db-backup", "db-restore"]);
 
 const MONTHLY_EXCEL_REPORTS_KEY = "club-management.monthlyExcelReports";
 
@@ -210,7 +215,19 @@ export function App() {
       return;
     }
 
+    // "DB 백업" isn't a screen - it runs immediately and stays on whatever view is currently open.
+    if (nextView === "db-backup") {
+      void handleDbBackup();
+      return;
+    }
+
     setView(nextView);
+  };
+
+  const handleDbBackup = async () => {
+    setSystemMessage("DB 백업을 진행하고 있습니다...");
+    const result = await backupDatabase();
+    setSystemMessage(result.ok ? `DB 백업을 완료했습니다: ${result.path}` : result.error ?? "DB 백업에 실패했습니다.");
   };
 
   const openActivityPopup = (activityId: string) => {
@@ -409,6 +426,8 @@ export function App() {
             posts={boardPosts}
           />
         )}
+
+        {view === "db-restore" && session.role === "admin" && <DbRestoreView onSystemMessage={setSystemMessage} />}
 
         {view === "members" && (
           <MembersView

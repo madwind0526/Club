@@ -22,6 +22,7 @@ interface Activity {
   content: string;
   attendeeIds: string[];
   photoFileNames: string[];
+  bankFileNames: string[];
   receiptFileNames: string[];
   expenseFileNames: string[];
   receipts: LineItem[];
@@ -230,7 +231,7 @@ async function writePhotosByWeek(
   sheet: ExcelJS.Worksheet,
   startRow: number,
   monthActivities: Activity[],
-  field: "photoFileNames" | "receiptFileNames" | "expenseFileNames",
+  field: "photoFileNames" | "bankFileNames" | "receiptFileNames" | "expenseFileNames",
   imagesPerRow = IMAGES_PER_ROW,
   startCol = 1
 ): Promise<number> {
@@ -648,6 +649,17 @@ async function buildWeekSheet(
   sheet.getColumn(4).width = 24;
 }
 
+// A simple sheet: just the "통장 현황" title, then every week's bank-statement photos underneath -
+// no combined line-item table, since bank statements have no per-item price/note fields.
+async function buildBankSheet(workbook: ExcelJS.Workbook, monthActivities: Activity[]) {
+  const sheet = workbook.addWorksheet("통장 현황");
+
+  setSectionTitle(sheet, 1, "통장 현황");
+  await writePhotosByWeek(workbook, sheet, 2, monthActivities, "bankFileNames");
+
+  sheet.getColumn(1).width = 26;
+}
+
 async function buildMediaSheet(
   workbook: ExcelJS.Workbook,
   sheetName: string,
@@ -698,7 +710,11 @@ function buildMembersSheet(workbook: ExcelJS.Workbook, members: Member[]) {
 }
 
 export async function buildMonthlyReportWorkbook(dataDir: string, yyyyMm: string): Promise<ExcelJS.Workbook> {
-  const activities = await readJsonFile<Activity[]>(dataDir, "activities.json", []);
+  // bankFileNames was added after activities.json already had real activities on disk - default
+  // it to [] for anything saved before that, so writePhotosByWeek's `files.length`/`files.map`
+  // doesn't throw on an older activity.
+  const rawActivities = await readJsonFile<Activity[]>(dataDir, "activities.json", []);
+  const activities = rawActivities.map((activity) => ({ ...activity, bankFileNames: activity.bankFileNames ?? [] }));
   const members = await readJsonFile<Member[]>(dataDir, "members.json", []);
   const settings = await readJsonFile<ReportSettings>(dataDir, "app-settings.json", {});
 
@@ -729,6 +745,7 @@ export async function buildMonthlyReportWorkbook(dataDir: string, yyyyMm: string
     await buildWeekSheet(workbook, weekNumber, yyyyMm, activitiesByWeek.get(weekNumber) ?? [], members, sponsorship);
   }
 
+  await buildBankSheet(workbook, monthActivities);
   await buildMediaSheet(workbook, "영수증", monthActivities, "receiptFileNames", "receipts");
   await buildMediaSheet(workbook, "경비", monthActivities, "expenseFileNames", "expenses");
 

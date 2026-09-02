@@ -90,6 +90,7 @@ export function ActivityRegisterView({ currentMember, members, onCreate, onSyste
       content,
       attendeeIds,
       photoFileNames: [],
+      bankFileNames: [],
       receiptFileNames: [],
       expenseFileNames: [],
       receipts: [],

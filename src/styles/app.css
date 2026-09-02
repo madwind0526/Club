@@ -680,6 +680,14 @@ a {
   margin-inline: auto;
 }
 
+.db-backup-table .db-backup-center-cell {
+  text-align: center;
+}
+
+.db-backup-table .db-backup-center-cell .icon-btn {
+  margin-inline: auto;
+}
+
 .monthly-report-table th,
 .monthly-report-table td {
   text-align: center;
@@ -1280,6 +1288,59 @@ a {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+/* ---------- Folder navigator (built-in, non-native folder picker) ---------- */
+
+.folder-navigator-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.folder-navigator-pathbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.folder-navigator-pathbar input {
+  flex: 1;
+  min-width: 0;
+}
+
+.folder-navigator-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.folder-navigator-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.folder-navigator-row:last-child {
+  border-bottom: 0;
+}
+
+.folder-navigator-row:hover {
+  background: var(--hover-bg);
 }
 
 /* ---------- Attendee picker ---------- */

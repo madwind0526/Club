@@ -1,10 +1,13 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
+import { exec } from "node:child_process";
+import { homedir } from "node:os";
 import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { buildMonthlyReportWorkbook } from "./server/excelExport.js";
+import { createDatabaseBackup, listDatabaseBackups, restoreDatabaseBackup } from "./server/backup.js";
 import { resolveAppPath, resolveCategoryFolder, resolvePlanFolder } from "./server/paths.js";
 import {
   isActivityListStructuralChange,
@@ -17,6 +20,7 @@ import {
 type FolderSettings = {
   dataRootFolder?: string;
   photosFolder?: string;
+  bankFolder?: string;
   receiptsFolder?: string;
   expensesFolder?: string;
   planFolder?: string;
@@ -32,6 +36,7 @@ interface ActivityForAuthCheck {
   planFilePaths: unknown;
   attendeeIds: string[];
   photoFileNames: unknown;
+  bankFileNames: unknown;
   receiptFileNames: unknown;
   expenseFileNames: unknown;
   receipts: unknown;
@@ -133,6 +138,46 @@ function isPathWithinRoot(filePath: string, root: string): boolean {
   return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
 }
 
+const MEDIA_CATEGORIES = ["Photos", "Bank", "Receipts", "Expenses"] as const;
+
+// Mirrors electron/main.ts's getAllowedMediaRoots/isAllowedLocalFilePath/isMonthlyExcelReportPath
+// - used by both /api/media (serving thumbnails) and /api/open-path (opening a file with the OS
+// default app) below, so a request can only ever touch a file under a configured media root, the
+// club logo, or a generated monthly report - never an arbitrary path on the server's disk.
+function getAllowedMediaRoots(settings: FolderSettings | null): string[] {
+  if (!settings) {
+    return [];
+  }
+
+  return MEDIA_CATEGORIES.map((category) => resolveCategoryFolder(settings, category))
+    .concat(resolvePlanFolder(settings))
+    .filter((folder): folder is string => Boolean(folder))
+    .map((folder) => resolveAppPath(folder));
+}
+
+function isAllowedLocalFilePath(filePath: string, settings: FolderSettings | null): boolean {
+  const roots = getAllowedMediaRoots(settings);
+  const isWithinMediaRoot = roots.some((root) => isPathWithinRoot(filePath, root));
+  const isLogoFile = Boolean(settings?.clubLogoPath) && filePath === resolveAppPath(settings!.clubLogoPath!);
+
+  return isWithinMediaRoot || isLogoFile;
+}
+
+function isMonthlyExcelReportPath(filePath: string): boolean {
+  return /^club-management-\d{4}-\d{2}-monthly-report\.xlsx$/i.test(path.basename(filePath));
+}
+
+// Windows-only environment (see README) - `start` is a cmd.exe builtin, so it has to be invoked
+// through cmd.exe; the empty "" first argument is `start`'s window-title placeholder, needed
+// whenever the actual target path is itself quoted.
+function openPathInOs(filePath: string): Promise<{ ok: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    exec(`start "" "${filePath}"`, { windowsHide: true }, (error) => {
+      resolve(error ? { ok: false, error: error.message } : { ok: true });
+    });
+  });
+}
+
 function hashPassword(password: string) {
   return createHash("sha256").update(password, "utf8").digest("hex");
 }
@@ -142,7 +187,16 @@ function toPublicMember<T extends { passwordHash?: string }>(member: T) {
   return rest;
 }
 
+// bankFileNames was added after activities.json already had real data on disk - default it to []
+// for any activity saved before that, so opening an older activity's report doesn't crash on a
+// missing array (MediaSection reads `files.length`/`files.map` unconditionally), and so the
+// permission check below doesn't mistake "always been unset" for "the client just changed it".
+function withBankFileNamesDefault(activity: Record<string, unknown>) {
+  return { ...activity, bankFileNames: (activity.bankFileNames as string[] | undefined) ?? [] };
+}
+
 const dataDir = path.resolve(process.cwd(), process.env.CLUB_DATA_DIR ?? "data/runtime");
+const projectRoot = process.cwd();
 
 function dataFilePath(name: string) {
   return path.join(dataDir, name);
@@ -514,12 +568,16 @@ function clubDevApiPlugin() {
         if (!requester) return;
 
         if (request.method === "GET") {
-          return sendJson(response, 200, await readJson("activities.json", []));
+          const activities = await readJson<Array<Record<string, unknown>>>("activities.json", []);
+          return sendJson(response, 200, activities.map(withBankFileNamesDefault));
         }
 
         if (request.method === "PUT" && isTrustedApiRequest(request)) {
           const body = JSON.parse((await readRequestBody(request)) || "[]");
-          const current = await readJson<ActivityForAuthCheck[]>("activities.json", []);
+          const current = (await readJson<ActivityForAuthCheck[]>("activities.json", [])).map((activity) => ({
+            ...activity,
+            bankFileNames: (activity.bankFileNames as string[] | undefined) ?? []
+          }));
 
           if (requester.role !== "admin") {
             // 활동 등록/삭제(구조적 변경)는 admin만. 이미 있는 활동에 대해서도 일반 회원이 바꿀 수
@@ -574,32 +632,107 @@ function clubDevApiPlugin() {
         response.end();
       });
 
+      // The destination folder comes from the built-in file navigator (src/components/views/
+      // FolderNavigatorModal.tsx) in both Electron and this browser dev-server path - the file
+      // is written straight to that folder server-side (same machine `npm run dev` runs on),
+      // matching electron/main.ts's export:monthlyExcel instead of streaming a browser download.
       server.middlewares.use("/api/export-monthly-excel", async (request, response) => {
         const requester = await requireAdmin(request, response);
         if (!requester) return;
 
         const url = new URL(request.url ?? "", "http://127.0.0.1");
         const yyyyMm = url.searchParams.get("yyyyMm") ?? "";
+        const folderParam = url.searchParams.get("folder") ?? "";
 
         if (!/^\d{4}-\d{2}$/.test(yyyyMm)) {
-          response.statusCode = 400;
-          response.end();
-          return;
+          return sendJson(response, 400, { ok: false, error: "잘못된 월(yyyyMm) 값입니다." });
         }
+
+        if (!folderParam) {
+          return sendJson(response, 400, { ok: false, error: "저장 폴더를 선택해 주세요." });
+        }
+
+        const resolvedFolder = resolveAppPath(folderParam);
+
+        try {
+          const folderStat = await stat(resolvedFolder);
+
+          if (!folderStat.isDirectory()) {
+            return sendJson(response, 400, { ok: false, error: "선택한 경로가 폴더가 아닙니다." });
+          }
+        } catch {
+          return sendJson(response, 400, { ok: false, error: "선택한 폴더를 찾을 수 없습니다." });
+        }
+
+        const filePath = path.join(resolvedFolder, `club-management-${yyyyMm}-monthly-report.xlsx`);
 
         try {
           const workbook = await buildMonthlyReportWorkbook(dataDir, yyyyMm);
           const buffer = await workbook.xlsx.writeBuffer();
 
-          response.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-          response.setHeader(
-            "Content-Disposition",
-            `attachment; filename="club-management-${yyyyMm}-monthly-report.xlsx"`
-          );
-          response.end(Buffer.from(buffer));
+          await writeFile(filePath, Buffer.from(buffer));
+          // Fire-and-forget - a monthly export is a natural "things are in a good state"
+          // checkpoint, so back up the DB automatically, but never let a backup failure affect
+          // the export's own response.
+          void createDatabaseBackup(dataDir, projectRoot);
+          return sendJson(response, 200, { ok: true, path: filePath });
         } catch {
-          response.statusCode = 500;
-          response.end();
+          return sendJson(response, 500, { ok: false, error: "엑셀 파일 생성에 실패했습니다." });
+        }
+      });
+
+      // Shortcuts for the built-in file navigator (dev-server/browser path - see the comment on
+      // /api/export-monthly-excel above). Mirrors electron/main.ts's fileNavigatorShortcuts(),
+      // using Node's os.homedir() since there's no Electron `app.getPath` in this context.
+      function fileNavigatorShortcuts() {
+        const home = homedir();
+
+        return [
+          { label: "바탕화면", path: path.join(home, "Desktop") },
+          { label: "내 문서", path: path.join(home, "Documents") },
+          { label: "다운로드", path: path.join(home, "Downloads") },
+          { label: "프로젝트 폴더", path: process.cwd() },
+          { label: "프로젝트\\Report 폴더", path: path.join(process.cwd(), "Report") }
+        ];
+      }
+
+      server.middlewares.use("/api/list-dir", async (request, response) => {
+        const requester = await requireAdmin(request, response);
+        if (!requester) return;
+
+        const url = new URL(request.url ?? "", "http://127.0.0.1");
+        const dirParam = url.searchParams.get("path");
+        const target = dirParam && dirParam.trim() ? resolveAppPath(dirParam.trim()) : path.join(homedir(), "Documents");
+        const shortcuts = fileNavigatorShortcuts();
+
+        try {
+          const info = await stat(target);
+
+          if (!info.isDirectory()) {
+            throw new Error("폴더가 아닙니다.");
+          }
+
+          const rawEntries = await readdir(target, { withFileTypes: true });
+          const entries = rawEntries
+            .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
+            .map((entry) => ({ name: entry.name, path: path.join(target, entry.name) }))
+            .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+          const parent = path.dirname(target);
+
+          return sendJson(response, 200, {
+            path: target,
+            parent: parent === target ? null : parent,
+            entries,
+            shortcuts
+          });
+        } catch (error) {
+          return sendJson(response, 200, {
+            path: target,
+            parent: null,
+            entries: [],
+            shortcuts,
+            error: error instanceof Error ? error.message : "폴더를 열지 못했습니다."
+          });
         }
       });
 
@@ -608,7 +741,7 @@ function clubDevApiPlugin() {
         if (!requester) return;
 
         const url = new URL(request.url ?? "", "http://127.0.0.1");
-        const category = (url.searchParams.get("category") ?? "") as "Photos" | "Receipts" | "Expenses";
+        const category = (url.searchParams.get("category") ?? "") as "Photos" | "Bank" | "Receipts" | "Expenses";
         const yyyyMm = url.searchParams.get("yyyyMm") ?? "";
         const week = url.searchParams.get("week") ?? "1";
         const settings = await readJson<FolderSettings | null>("app-settings.json", null);
@@ -679,9 +812,7 @@ function clubDevApiPlugin() {
           return sendJson(response, 200, { ok: false });
         }
 
-        const categories: Array<"Photos" | "Receipts" | "Expenses"> = ["Photos", "Receipts", "Expenses"];
-        const targets = categories
-          .map((category) => resolveCategoryFolder(settings, category))
+        const targets = MEDIA_CATEGORIES.map((category) => resolveCategoryFolder(settings, category))
           .filter((folder): folder is string => Boolean(folder))
           .map((folder) => path.join(folder, yyyyMm, `Week${week}`));
         const planFolder = resolvePlanFolder(settings);
@@ -714,18 +845,9 @@ function clubDevApiPlugin() {
         // the club logo itself) - otherwise the query param would let any local page read
         // arbitrary files on disk.
         const settings = await readJson<FolderSettings | null>("app-settings.json", null);
-        const roots = settings
-          ? (["Photos", "Receipts", "Expenses"] as const)
-              .map((category) => resolveCategoryFolder(settings, category))
-              .concat(resolvePlanFolder(settings))
-              .filter((folder): folder is string => Boolean(folder))
-              .map((folder) => resolveAppPath(folder))
-          : [];
         const filePath = resolveAppPath(requestedPath);
-        const isWithinAnyRoot = roots.some((root) => isPathWithinRoot(filePath, root));
-        const isLogoFile = Boolean(settings?.clubLogoPath) && filePath === resolveAppPath(settings!.clubLogoPath!);
 
-        if (!isWithinAnyRoot && !isLogoFile) {
+        if (!isAllowedLocalFilePath(filePath, settings)) {
           response.statusCode = 403;
           response.end();
           return;
@@ -753,6 +875,72 @@ function clubDevApiPlugin() {
           response.statusCode = 404;
           response.end();
         }
+      });
+
+      // Opens a file with the OS default app on the machine `npm run dev` is running on - mirrors
+      // electron/main.ts's shell:openPath IPC handler, for the browser dev path (the monthly
+      // Excel report's "열기" button, and non-image/PDF plan-file attachments).
+      server.middlewares.use("/api/open-path", async (request, response) => {
+        const requester = await requireMember(request, response);
+        if (!requester) return;
+
+        if (request.method !== "POST" || !isTrustedApiRequest(request)) {
+          response.statusCode = 405;
+          response.end();
+          return;
+        }
+
+        const body = JSON.parse((await readRequestBody(request)) || "{}");
+        const requestedPath = String(body.path ?? "");
+
+        if (!requestedPath) {
+          return sendJson(response, 400, { ok: false, error: "파일 경로가 없습니다." });
+        }
+
+        const resolvedPath = resolveAppPath(requestedPath);
+        const settings = await readJson<FolderSettings | null>("app-settings.json", null);
+
+        if (!isAllowedLocalFilePath(resolvedPath, settings) && !isMonthlyExcelReportPath(resolvedPath)) {
+          return sendJson(response, 403, { ok: false, error: "열 수 없는 파일 경로입니다." });
+        }
+
+        sendJson(response, 200, await openPathInOs(resolvedPath));
+      });
+
+      server.middlewares.use("/api/db/backup", async (request, response) => {
+        const requester = await requireAdmin(request, response);
+        if (!requester) return;
+
+        if (request.method !== "POST" || !isTrustedApiRequest(request)) {
+          response.statusCode = 405;
+          response.end();
+          return;
+        }
+
+        sendJson(response, 200, await createDatabaseBackup(dataDir, projectRoot));
+      });
+
+      server.middlewares.use("/api/db/list-backups", async (request, response) => {
+        const requester = await requireAdmin(request, response);
+        if (!requester) return;
+
+        sendJson(response, 200, await listDatabaseBackups(projectRoot));
+      });
+
+      server.middlewares.use("/api/db/restore", async (request, response) => {
+        const requester = await requireAdmin(request, response);
+        if (!requester) return;
+
+        if (request.method !== "POST" || !isTrustedApiRequest(request)) {
+          response.statusCode = 405;
+          response.end();
+          return;
+        }
+
+        const body = JSON.parse((await readRequestBody(request)) || "{}");
+        const fileName = String(body.fileName ?? "");
+
+        sendJson(response, 200, await restoreDatabaseBackup(dataDir, projectRoot, fileName));
       });
     }
   };
