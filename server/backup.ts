@@ -1,4 +1,4 @@
-import AdmZip from "adm-zip";
+import JSZip from "jszip";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -13,6 +13,9 @@ import { resolveAppPath } from "./paths.js";
 //
 // Per-category folder overrides that point OUTSIDE the data-root folder are NOT included - only
 // the unified root is backed up/restored.
+//
+// Uses JSZip rather than adm-zip - some corporate security policies block adm-zip specifically,
+// and JSZip's plain-buffer, no-native-binding API sidesteps that entirely.
 
 const RUNTIME_FILES = ["activities.json", "members.json", "board.json", "app-settings.json"];
 const DATA_RUNTIME_PREFIX = "data/runtime/";
@@ -38,31 +41,49 @@ async function readDataRootFolder(dataDir: string): Promise<string | null> {
   }
 }
 
+// Recursively adds every file under `folderPath` to the zip, keyed as `<zipPrefix>/<relative
+// path>` (always forward-slash, regardless of OS) - JSZip has no addLocalFolder equivalent, so
+// the directory walk is done by hand.
+async function addFolderToZip(zip: JSZip, folderPath: string, zipPrefix: string): Promise<void> {
+  const entries = await readdir(folderPath, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(folderPath, entry.name);
+    const zipEntryName = `${zipPrefix}/${entry.name}`;
+
+    if (entry.isDirectory()) {
+      await addFolderToZip(zip, fullPath, zipEntryName);
+    } else if (entry.isFile()) {
+      zip.file(zipEntryName, await readFile(fullPath));
+    }
+  }
+}
+
 export async function createDatabaseBackup(
   dataDir: string,
   projectRoot: string
 ): Promise<{ ok: boolean; path?: string; error?: string }> {
   try {
-    const zip = new AdmZip();
+    const zip = new JSZip();
 
     for (const file of RUNTIME_FILES) {
       const filePath = path.join(dataDir, file);
 
       if (existsSync(filePath)) {
-        zip.addLocalFile(filePath, "data/runtime");
+        zip.file(`${DATA_RUNTIME_PREFIX}${file}`, await readFile(filePath));
       }
     }
 
     const dataRootFolder = await readDataRootFolder(dataDir);
 
     if (dataRootFolder && existsSync(dataRootFolder)) {
-      zip.addLocalFolder(dataRootFolder, "data-root");
+      await addFolderToZip(zip, dataRootFolder, "data-root");
     }
 
     const reportFolder = path.join(projectRoot, "Report");
 
     if (existsSync(reportFolder)) {
-      zip.addLocalFolder(reportFolder, "report");
+      await addFolderToZip(zip, reportFolder, "report");
     }
 
     const backupDir = path.join(projectRoot, "backup");
@@ -70,8 +91,9 @@ export async function createDatabaseBackup(
     await mkdir(backupDir, { recursive: true });
 
     const zipPath = path.join(backupDir, backupFileName());
+    const buffer = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 
-    zip.writeZip(zipPath);
+    await writeFile(zipPath, buffer);
 
     return { ok: true, path: zipPath };
   } catch (error) {
@@ -129,8 +151,7 @@ export async function restoreDatabaseBackup(
   const reportFolder = path.join(projectRoot, "Report");
 
   try {
-    const zip = new AdmZip(zipPath);
-    const entries = zip.getEntries();
+    const zip = await JSZip.loadAsync(await readFile(zipPath));
 
     for (const file of RUNTIME_FILES) {
       await rm(path.join(dataDir, file), { force: true });
@@ -146,19 +167,19 @@ export async function restoreDatabaseBackup(
 
     await mkdir(dataDir, { recursive: true });
 
-    for (const entry of entries) {
-      if (entry.isDirectory) {
+    for (const entry of Object.values(zip.files)) {
+      if (entry.dir) {
         continue;
       }
 
       let targetPath: string | null = null;
 
-      if (entry.entryName.startsWith(DATA_RUNTIME_PREFIX)) {
-        targetPath = path.join(dataDir, entry.entryName.slice(DATA_RUNTIME_PREFIX.length));
-      } else if (dataRootFolder && entry.entryName.startsWith(DATA_ROOT_PREFIX)) {
-        targetPath = path.join(dataRootFolder, entry.entryName.slice(DATA_ROOT_PREFIX.length));
-      } else if (entry.entryName.startsWith(REPORT_PREFIX)) {
-        targetPath = path.join(reportFolder, entry.entryName.slice(REPORT_PREFIX.length));
+      if (entry.name.startsWith(DATA_RUNTIME_PREFIX)) {
+        targetPath = path.join(dataDir, entry.name.slice(DATA_RUNTIME_PREFIX.length));
+      } else if (dataRootFolder && entry.name.startsWith(DATA_ROOT_PREFIX)) {
+        targetPath = path.join(dataRootFolder, entry.name.slice(DATA_ROOT_PREFIX.length));
+      } else if (entry.name.startsWith(REPORT_PREFIX)) {
+        targetPath = path.join(reportFolder, entry.name.slice(REPORT_PREFIX.length));
       }
 
       if (!targetPath) {
@@ -166,7 +187,7 @@ export async function restoreDatabaseBackup(
       }
 
       await mkdir(path.dirname(targetPath), { recursive: true });
-      await writeFile(targetPath, entry.getData());
+      await writeFile(targetPath, await entry.async("nodebuffer"));
     }
 
     return { ok: true };
