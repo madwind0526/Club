@@ -3,7 +3,7 @@ import process from "node:process";
 import electronPath from "electron";
 
 const projectRoot = process.cwd();
-const devServerUrl = "http://127.0.0.1:5173";
+const devServerUrl = "http://127.0.0.1:5175";
 
 console.log("Building Electron main process...");
 const build = spawnSync("npx", ["tsc", "-p", "tsconfig.node.json"], {

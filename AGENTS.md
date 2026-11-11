@@ -10,12 +10,12 @@ Club Management is a Korean-language desktop app for running a company club/hobb
 
 ```bash
 npm install     # Install dependencies
-npm run dev     # Vite dev server only, browser at http://127.0.0.1:5173 (uses /api/* fallback instead of Electron IPC)
+npm run dev     # Vite dev server only, browser at http://127.0.0.1:5175 (uses /api/* fallback instead of Electron IPC)
 npm start       # Build electron main, start Vite dev server, launch Electron window (tools/start-app.mjs)
 npm run build   # tsc -b && vite build && tsc -p tsconfig.node.json
 ```
 
-On Windows, `start.bat`/`stop.bat` (project root) wrap `npm start` with a port-5173 cleanup step first (find+kill whatever's listening there via `netstat`/`taskkill`, `stop.bat` also closes the "Club Management" window) - mirrors the same scripts in `SNS-Reader`. Useful since a leftover dev server from *either* project can end up shadowing the other's on port 5173.
+On Windows, `start.bat`/`stop.bat` (project root) wrap `npm start` with a port-5175 cleanup step first (find+kill whatever's listening there via `netstat`/`taskkill`, `stop.bat` also closes the "Club Management" window) - mirrors the same scripts in `SNS-Reader`. Useful since a leftover dev server from *either* project can end up shadowing the other's on port 5175.
 
 ## Architecture
 

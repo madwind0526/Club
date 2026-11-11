@@ -2,8 +2,8 @@
 setlocal enabledelayedexpansion
 echo Stopping Club Management...
 
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":5173" ^| findstr "LISTENING"') do (
-    echo Stopping server on port 5173 ^(PID %%P^)...
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":5175" ^| findstr "LISTENING"') do (
+    echo Stopping server on port 5175 ^(PID %%P^)...
     taskkill /F /PID %%P >nul 2>&1
 )
 

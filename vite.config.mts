@@ -101,7 +101,7 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
 // These dev-only /api/* routes only ever expect requests from this app's own dev-server
 // origin. Without this check, any other page open in the same browser could blind-POST here
 // while `npm run dev` is running.
-const TRUSTED_API_ORIGINS = new Set(["http://127.0.0.1:5173", "http://localhost:5173"]);
+const TRUSTED_API_ORIGINS = new Set(["http://127.0.0.1:5175", "http://localhost:5175"]);
 
 function isTrustedApiRequest(request: IncomingMessage) {
   const secFetchSite = request.headers["sec-fetch-site"];
@@ -949,6 +949,6 @@ function clubDevApiPlugin() {
 export default defineConfig({
   plugins: [react(), clubDevApiPlugin()],
   server: {
-    port: 5173
+    port: 5175
   }
 });
